@@ -1,0 +1,13 @@
+services:
+  school-db:
+    image: mysql:8.4
+    container_name: school-db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: dev
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+    volumes:
+      - ./mysql-data:/var/lib/mysql
