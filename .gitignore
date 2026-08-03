@@ -1,5 +1,6 @@
 */*/mysql-data
-
+plans/
+plans/*
 # dependencies (bun install)
 node_modules
 

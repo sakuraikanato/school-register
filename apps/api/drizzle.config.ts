@@ -6,8 +6,8 @@ expand(dotenv.config({debug: true}));
 
 export default defineConfig({
 	dialect: "mysql",
-	schema: "./app/db/schema.ts",
-	out: "./app/db/drizzle",
+	schema: "./src/db/schema/index.ts",
+	out: "./src/db/drizzle",
 	dbCredentials: {
 		user: process.env.DB_USER || "root",
 		password: process.env.DB_PASSWORD || "pass",

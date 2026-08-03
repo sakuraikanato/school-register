@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { csrf } from 'hono/csrf'
+import apiRoutes from './routes/api'
 
 const app = new Hono()
 
@@ -9,6 +10,7 @@ const app = new Hono()
 .get('/', (c) => {
   return c.text('Hello Hono!')
 })
+.route('/api', apiRoutes)
 
 export type AppType = typeof app
 export default app
