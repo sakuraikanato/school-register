@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { csrf } from 'hono/csrf'
+import { serve } from '@hono/node-server'
 import apiRoutes from './routes/api'
 
 const app = new Hono()
@@ -14,3 +15,8 @@ const app = new Hono()
 
 export type AppType = typeof app
 export default app
+
+serve({
+  fetch: app.fetch,
+  port: 8080
+})
