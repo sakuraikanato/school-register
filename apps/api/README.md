@@ -20,6 +20,21 @@ API側の `.env` に `DB_*`、`BETTER_AUTH_SECRET`、`BETTER_AUTH_URL`、必要�
 `NEXT_PUBLIC_API_URL=http://localhost:8000` です。
 マイグレーションはテーブルと制約だけを作成し、初期データは投入しません。
 
+### ユーザーの初期投入
+
+開発用ユーザーと年度を投入する場合は、マイグレーション後に次を実行します。
+
+```sh
+bun run seed:users
+```
+
+デフォルトでは `staff@example.com` / `Staff123!`（専任職員）と
+`teacher@example.com` / `Teacher123!`（講師）を作成します。年度やメールアドレス、
+パスワードは `SEED_YEAR`、`SEED_STAFF_EMAIL`、`SEED_STAFF_PASSWORD`、
+`SEED_TEACHER_EMAIL`、`SEED_TEACHER_PASSWORD` で変更できます。seeder はメールアドレスを
+キーに冪等に更新し、既存パスワードは維持します。既存ユーザーのパスワードを再設定する
+場合のみ `SEED_RESET_PASSWORD=1 bun run seed:users` を指定してください。
+
 ## 画面エンドポイント
 
 すべて `/api/screens` 配下です。保護された画面は Better Auth のセッションCookieを

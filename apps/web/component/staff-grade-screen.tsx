@@ -3,72 +3,23 @@
 import { useState } from "react";
 import { ConfirmationModal, CsvImportModal, WeightModal } from "@/component/modals";
 import { StaffMobileLogout } from "@/component/staff-mobile";
+import type { TeacherGradeEntryResponse, ScreenQuery } from "@/utils/client";
+import { finalizeStaffSubject, saveTeacherWeight } from "@/utils/client";
+import { GradePill } from "@/component/grade-ui";
 
-const rows = Array.from({ length: 7 }, (_, index) => ({ id: index + 1 }));
-
-export function StaffGradeScreen() {
-  const [weights, setWeights] = useState([3, 3, 4]);
+export function StaffGradeScreen({ data, subjectId, query = {} }: Readonly<{ data: TeacherGradeEntryResponse; subjectId: number; query?: ScreenQuery }>) {
+  const initialWeights = [data.weight?.attendanceWeight ?? 0, data.weight?.attitudeWeight ?? 0, data.weight?.assignmentWeight ?? 0];
+  const [weights, setWeights] = useState(initialWeights);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [confirmationModalOpen, setConfirmationModalOpen] = useState(false);
   const [message, setMessage] = useState("");
-
-  return (
-    <>
-      <main className="staff-grade-page">
-        <header className="staff-grade-header">
-          <div className="staff-grade-breadcrumb"><span>ホーム</span><b>›</b><span>担当科目</span><b>›</b><strong>成績一覧</strong></div>
-          <div className="staff-grade-heading-row">
-            <h1>科目・Webデザイン</h1>
-            <button className="staff-grade-csv" type="button" onClick={() => setCsvModalOpen(true)}>CSV読み込み</button>
-            <button className="staff-grade-metrics" type="button" onClick={() => setWeightModalOpen(true)} aria-label="評価基準を変更">
-              <div><strong>出席率</strong><span>{weights[0]}</span></div>
-              <div><strong>授業態度</strong><span>{weights[1]}</span></div>
-              <div><strong>課題</strong><span>{weights[2]}</span></div>
-            </button>
-            <label className="staff-grade-search"><span aria-hidden="true" /><input placeholder="(学籍・氏名)" /></label>
-          </div>
-        </header>
-        <section className="staff-grade-table-shell">
-          <table className="staff-grade-table">
-            <thead><tr><th>ステータス</th><th>学籍</th><th>氏名</th><th>出席率(〇%)</th><th>授業態度(1~10)</th><th>課題(1~10)</th><th>点数</th><th>評価</th></tr></thead>
-            <tbody>{rows.map((row) => <tr key={row.id}><td>在籍</td><td>0000</td><td>斉藤太郎</td><td>〇〇%</td><td>〇〇</td><td>〇〇</td><td>〇〇点</td><td>秀</td></tr>)}</tbody>
-          </table>
-        </section>
-        <footer className="staff-grade-actions">
-          <button className="staff-green-button" type="button">未入力チェック</button>
-          <div><button className="staff-white-button" type="button">保存</button><button className="staff-green-button" type="button" onClick={() => setConfirmationModalOpen(true)}>確定</button></div>
-        </footer>
-        {message && <p className="staff-grade-message" role="status">{message}</p>}
-      </main>
-      {weightModalOpen && <WeightModal weights={weights} onConfirm={setWeights} onClose={() => setWeightModalOpen(false)} />}
-      {csvModalOpen && <CsvImportModal onClose={() => setCsvModalOpen(false)} />}
-      {confirmationModalOpen && <ConfirmationModal onClose={() => setConfirmationModalOpen(false)} onConfirm={() => setMessage("成績を確定しました。")} />}
-    </>
-  );
+  const rows = data.students;
+  const saveWeights = async (next: number[]) => { setWeights(next); try { await saveTeacherWeight(subjectId, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setMessage("重みを保存しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "重みの保存に失敗しました"); } };
+  const confirm = async () => { try { await finalizeStaffSubject(subjectId, query); setMessage("成績を確定しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "成績の確定に失敗しました"); } };
+  return <><main className="staff-grade-page"><header className="staff-grade-header"><div className="staff-grade-breadcrumb"><span>ホーム</span><b>›</b><span>担当科目</span><b>›</b><strong>成績一覧</strong></div><div className="staff-grade-heading-row"><h1>科目・{data.subject.name}</h1><button className="staff-grade-csv" type="button" onClick={() => setCsvModalOpen(true)}>CSV読み込み</button><button className="staff-grade-metrics" type="button" onClick={() => setWeightModalOpen(true)} aria-label="評価基準を変更">{[["出席率", weights[0]], ["授業態度", weights[1]], ["課題", weights[2]]].map(([label, value]) => <div key={String(label)}><strong>{label}</strong><span>{value}</span></div>)}</button><label className="staff-grade-search"><span aria-hidden="true" /><input placeholder="(学籍・氏名)" /></label></div></header><section className="staff-grade-table-shell"><table className="staff-grade-table"><thead><tr><th>ステータス</th><th>学籍</th><th>氏名</th><th>出席率(〇%)</th><th>授業態度(1~10)</th><th>課題(1~10)</th><th>点数</th><th>評価</th></tr></thead><tbody>{rows.map(({ student, grade, gradeLabel }) => { const score = grade?.score ?? null; return <tr key={student.id}><td>{student.isAttending ? "在籍" : "休学"}</td><td>{student.studentNumber}</td><td>{student.name}</td><td>{grade ? `${grade.attendance}%` : "—"}</td><td>{grade?.attitude ?? "—"}</td><td>{grade?.assignment ?? "—"}</td><td>{score == null ? "—" : `${score}点`}</td><td>{score == null ? "—" : <GradePill score={score} label={gradeLabel} />}</td></tr>; })}</tbody></table></section><footer className="staff-grade-actions"><button className="staff-green-button" type="button" onClick={() => setMessage(data.progress.missing ? `未入力の成績が${data.progress.missing}件あります。` : "未入力の成績はありません。")}>未入力チェック</button><div><button className="staff-white-button" type="button" onClick={() => setMessage("成績を保存する場合は入力画面から保存してください。")}>保存</button><button className="staff-green-button" type="button" onClick={() => setConfirmationModalOpen(true)}>確定</button></div></footer>{message && <p className="staff-grade-message" role="status">{message}</p>}</main>{weightModalOpen && <WeightModal weights={weights} onConfirm={saveWeights} onClose={() => setWeightModalOpen(false)} />}{csvModalOpen && <CsvImportModal onClose={() => setCsvModalOpen(false)} />}{confirmationModalOpen && <ConfirmationModal onClose={() => setConfirmationModalOpen(false)} onConfirm={confirm} />}</>;
 }
 
-/** Mobile staff view keeps the desktop grade-list columns, but removes edit controls. */
-export function StaffGradeMobile() {
-  return (
-    <main className="staff-grade-mobile-page">
-      <header className="staff-grade-mobile-header">
-        <div className="staff-mobile-breadcrumb" aria-label="パンくずリスト">
-          <span>ホーム<b aria-hidden="true">›</b></span>
-          <span>担当科目<b aria-hidden="true">›</b></span>
-          <span className="is-active">成績一覧</span>
-        </div>
-        <h1>科目・Webデザイン</h1>
-      </header>
-      <section className="staff-grade-mobile-table-shell" aria-label="Webデザイン成績一覧">
-        <div className="staff-grade-mobile-table-scroll">
-          <table className="staff-grade-table staff-grade-mobile-table">
-            <thead><tr><th>ステータス</th><th>学籍</th><th>氏名</th><th>出席率(〇%)</th><th>授業態度(1~10)</th><th>課題(1~10)</th><th>点数</th><th>評価</th></tr></thead>
-            <tbody>{rows.map((row) => <tr key={row.id}><td>在籍</td><td>0000</td><td>斉藤太郎</td><td>〇〇%</td><td>〇〇</td><td>〇〇</td><td>〇〇点</td><td>秀</td></tr>)}</tbody>
-          </table>
-        </div>
-      </section>
-      <StaffMobileLogout />
-    </main>
-  );
+export function StaffGradeMobile({ data }: Readonly<{ data: TeacherGradeEntryResponse }>) {
+  return <main className="staff-grade-mobile-page"><header className="staff-grade-mobile-header"><div className="staff-mobile-breadcrumb" aria-label="パンくずリスト"><span>ホーム<b aria-hidden="true">›</b></span><span>担当科目<b aria-hidden="true">›</b></span><span className="is-active">成績一覧</span></div><h1>科目・{data.subject.name}</h1></header><section className="staff-grade-mobile-table-shell" aria-label={`${data.subject.name}成績一覧`}><div className="staff-grade-mobile-table-scroll"><table className="staff-grade-table staff-grade-mobile-table"><thead><tr><th>ステータス</th><th>学籍</th><th>氏名</th><th>出席率(〇%)</th><th>授業態度(1~10)</th><th>課題(1~10)</th><th>点数</th><th>評価</th></tr></thead><tbody>{data.students.map(({ student, grade, gradeLabel }) => <tr key={student.id}><td>{student.isAttending ? "在籍" : "休学"}</td><td>{student.studentNumber}</td><td>{student.name}</td><td>{grade ? `${grade.attendance}%` : "—"}</td><td>{grade?.attitude ?? "—"}</td><td>{grade?.assignment ?? "—"}</td><td>{grade?.score ?? "—"}</td><td>{grade ? <GradePill score={grade.score} label={gradeLabel} /> : "—"}</td></tr>)}</tbody></table></div></section><StaffMobileLogout /></main>;
 }

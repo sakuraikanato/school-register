@@ -50,11 +50,11 @@ export function StaffMobileOption({ href, title }: StaffMobileOptionProps) {
   );
 }
 
-export function StaffMobileHome() {
+export function StaffMobileHome({ userName }: Readonly<{ userName: string }>) {
   return (
     <section className="staff-mobile-view staff-mobile-home" aria-label="職員ホーム">
       <header>
-        <h1>ようこそ　田中太郎 先生</h1>
+        <h1>ようこそ　{userName} 先生</h1>
         <h2>仕様機能</h2>
       </header>
       <div className="staff-mobile-option-list">
@@ -96,7 +96,7 @@ export function StaffMobileStudents({ students }: Readonly<{ students: readonly 
   return (
     <section className="staff-mobile-view staff-mobile-students-page">
       <StaffMobileBreadcrumb items={["ホーム", "全生徒の成績一覧"]} />
-      <h1 className="staff-mobile-page-heading">過去の成績</h1>
+      <h1 className="staff-mobile-page-heading">全生徒の成績一覧</h1>
       <div className="staff-mobile-student-list">
         {students.map((student) => (
           <Link className="staff-mobile-student-card" href={student.href} key={student.number}>

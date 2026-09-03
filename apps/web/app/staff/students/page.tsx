@@ -1,27 +1,16 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
 import { AppShell } from "@/component/sidebar";
 import { StaffMobileStudents } from "@/component/staff-mobile";
-import Link from "next/link";
-
-const students = [
-  ["24001", "斉藤太郎"],
-  ["24002", "斉藤太郎"],
-  ["24003", "斉藤太郎"],
-  ["24004", "斉藤太郎"],
-  ["24005", "斉藤太郎"],
-  ["24006", "斉藤太郎"],
-] as const;
+import { getStaffStudents } from "@/utils/client";
+import { RpcStateMessage, useRpc } from "@/utils/use-rpc";
 
 export default function Page() {
-  return (
-    <AppShell currentPage="students">
-      <header className="staff-breadcrumb"><span>ホーム</span><b>›</b><span>全生徒の成績一覧</span></header>
-      <div className="desktop-content staff-students-content">
-        <label className="staff-search"><span aria-hidden="true" /><input placeholder="(学籍・氏名)" /></label>
-        <div className="staff-student-grid">
-          {students.map(([number, name]) => <Link href="/staff/grade-sheet" className="staff-student-card" key={number}><span>学籍番号</span><strong>{name}</strong></Link>)}
-        </div>
-      </div>
-      <div className="mobile-only"><StaffMobileStudents students={students.map(([number, name]) => ({ number, name, href: "/staff/grade-sheet" }))} /></div>
-    </AppShell>
-  );
+  const [search, setSearch] = useState("");
+  const state = useRpc(() => getStaffStudents({ search }), [search]);
+  const students = state.data?.students ?? [];
+  const mobileStudents = students.map((student) => ({ number: student.studentNumber, name: student.name, href: `/staff/grade-sheet?studentId=${student.id}` }));
+  return <AppShell currentPage="students"><RpcStateMessage loading={state.loading} error={state.error} />{!state.error && <><header className="staff-breadcrumb"><span>ホーム</span><b>›</b><span>全生徒の成績一覧</span></header><div className="desktop-content staff-students-content"><label className="staff-search"><span aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="(学籍・氏名)" /></label><div className="staff-student-grid">{students.map((student) => <Link href={`/staff/grade-sheet?studentId=${student.id}`} className="staff-student-card" key={student.id}><span>{student.studentNumber}</span><strong>{student.name}</strong></Link>)}</div></div><div className="mobile-only"><StaffMobileStudents students={mobileStudents} /></div></>}</AppShell>;
 }

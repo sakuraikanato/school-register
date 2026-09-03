@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { getStaffCsvImport } from "@/utils/client";
+import { RpcStateMessage, useRpc } from "@/utils/use-rpc";
 
 type ModalProps = Readonly<{
   children: React.ReactNode;
@@ -45,18 +47,22 @@ export function WeightModal({ onClose, onConfirm, weights }: Readonly<{
   onConfirm: (weights: number[]) => void;
   weights: number[];
 }>) {
-  const [draftWeights, setDraftWeights] = useState(weights);
-  const total = draftWeights.reduce((sum, weight) => sum + weight, 0);
+  const [draftWeights, setDraftWeights] = useState<(number | null)[]>(weights);
+  const total = draftWeights.reduce((sum: number, weight) => sum + (weight ?? 0), 0);
   const valid = total === 10;
 
   const updateWeight = (index: number, value: string) => {
+    if (value === "") {
+      setDraftWeights((previous) => previous.map((weight, weightIndex) => weightIndex === index ? null : weight));
+      return;
+    }
     const nextWeight = Number(value);
-    setDraftWeights((previous) => previous.map((weight, weightIndex) => weightIndex === index ? (Number.isFinite(nextWeight) ? nextWeight : 0) : weight));
+    setDraftWeights((previous) => previous.map((weight, weightIndex) => weightIndex === index ? (Number.isFinite(nextWeight) ? nextWeight : null) : weight));
   };
 
   const confirm = () => {
     if (!valid) return;
-    onConfirm(draftWeights);
+    onConfirm(draftWeights.map((weight) => weight ?? 0));
     onClose();
   };
 
@@ -69,7 +75,7 @@ export function WeightModal({ onClose, onConfirm, weights }: Readonly<{
         <p>合計が１０になるように入力してください</p>
         <table className="weight-modal-table">
           <thead><tr><th>項目</th><th>重み</th></tr></thead>
-          <tbody>{weightLabels.map((label, index) => <tr key={label}><th scope="row">{label}</th><td><input type="number" inputMode="numeric" min="0" max="10" value={draftWeights[index]} onChange={(event) => updateWeight(index, event.target.value)} aria-label={`${label}の重み`} /></td></tr>)}</tbody>
+          <tbody>{weightLabels.map((label, index) => <tr key={label}><th scope="row">{label}</th><td><input type="number" inputMode="numeric" min="0" max="10" value={draftWeights[index] ?? ""} onChange={(event) => updateWeight(index, event.target.value)} aria-label={`${label}の重み`} /></td></tr>)}</tbody>
           <tfoot><tr><th scope="row">合計</th><td className={valid ? "valid" : "invalid"}>{total}/10</td></tr></tfoot>
         </table>
         <button className="modal-outline-button weight-confirm-button" type="button" onClick={confirm} disabled={!valid}>決定</button>
@@ -91,7 +97,9 @@ export function LogoutModal({ onClose }: Readonly<{ onClose: () => void }>) {
 }
 
 export function CsvImportModal({ onClose }: Readonly<{ onClose: () => void }>) {
-  const [source, setSource] = useState("生徒");
+  const [source, setSource] = useState("");
+  const state = useRpc(() => getStaffCsvImport(), []);
+  const resources = state.data?.resources ?? [];
 
   return (
     <Modal className="csv-import-modal" label="CSV取り込み" onClose={onClose}>
@@ -100,9 +108,9 @@ export function CsvImportModal({ onClose }: Readonly<{ onClose: () => void }>) {
       <ol className="csv-modal-steps" aria-label="CSV取り込み手順">
         {["種類選択", "ファイル選択", "確認", "結果"].map((step, index) => <li key={step}><span>{index + 1}</span><strong>{step}</strong></li>)}
       </ol>
-      <fieldset className="csv-modal-options">
+      <RpcStateMessage loading={state.loading} error={state.error} /><fieldset className="csv-modal-options">
         <legend>取り込む種類を選択してください</legend>
-        {["生徒", "講師", "専任職員", "科目"].map((option) => <label key={option}><input type="radio" name="csv-source" value={option} checked={source === option} onChange={() => setSource(option)} />{option}</label>)}
+        {resources.map((option) => <label key={option.value}><input type="radio" name="csv-source" value={option.value} checked={source === option.value || (!source && option === resources[0])} onChange={() => setSource(option.value)} />{option.label}</label>)}
       </fieldset>
     </Modal>
   );
@@ -114,9 +122,8 @@ export function CsvImportTrigger({ children, className }: Readonly<{ children: R
   return <>{<button className={className} type="button" onClick={() => setModalOpen(true)}>{children}</button>}{modalOpen && <CsvImportModal onClose={() => setModalOpen(false)} />}</>;
 }
 
-export function ConfirmationModal({ onClose, onConfirm }: Readonly<{ onClose: () => void; onConfirm: () => void }>) {
-  const [year, setYear] = useState("2026");
-  const [term, setTerm] = useState("前期");
+export function ConfirmationModal({ onClose, onConfirm, year = "", term = "前期" }: Readonly<{ onClose: () => void; onConfirm: () => void; year?: string; term?: string }>) {
+  const [selectedTerm, setSelectedTerm] = useState(term);
 
   const confirm = () => {
     onConfirm();
@@ -128,8 +135,8 @@ export function ConfirmationModal({ onClose, onConfirm }: Readonly<{ onClose: ()
       <div className="modal-breadcrumb"><span>ホーム</span><b>›</b><span>成績一覧</span><b>›</b><strong>成績確認</strong></div>
       <div className="confirmation-modal-content">
         <div className="confirmation-selects">
-          <label>年度<select value={year} onChange={(event) => setYear(event.target.value)} aria-label="年度"><option>2026</option></select></label>
-          <label>学期<select value={term} onChange={(event) => setTerm(event.target.value)} aria-label="学期"><option>前期</option><option>後期</option></select></label>
+        <label>年度<select value={year} aria-label="年度" disabled><option>{year}</option></select></label>
+          <label>学期<select value={selectedTerm} onChange={(event) => setSelectedTerm(event.target.value)} aria-label="学期"><option>前期</option><option>後期</option></select></label>
         </div>
         <section className="confirmation-result"><h2>確認結果</h2><p>＊未入力はありません</p></section>
       </div>

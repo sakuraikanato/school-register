@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CsvImportTrigger, LogoutModal } from "@/component/modals";
+import { getDashboard } from "@/utils/client";
+import { useRpc } from "@/utils/use-rpc";
 
-type PageName = "home" | "entry" | "list" | "students" | "histories" | "courses" | "csv" | "web" | "uiux" | "javascript";
+type PageName = string;
 type Role = "staff" | "teacher";
 
 type SideBarProps = {
@@ -12,15 +14,8 @@ type SideBarProps = {
   role?: Role;
 };
 
-const navigation = (role: Role) => {
-  if (role === "teacher") {
-    return [
-      { id: "home" as const, label: "ホーム", href: "/teacher", icon: "home" },
-      { id: "web" as const, label: "Webデザイン", href: "/teacher/grade-list?subject=Webデザイン", icon: "sheet" },
-      { id: "uiux" as const, label: "UI/UXデザイン", href: "/teacher/grade-list?subject=UI/UXデザイン", icon: "sheet" },
-      { id: "javascript" as const, label: "JavaScript", href: "/teacher/grade-list?subject=JavaScript", icon: "sheet" },
-    ];
-  }
+const navigation = (role: Role, subjects: readonly { id: number; name: string }[] = []) => {
+  if (role === "teacher") return [{ id: "home", label: "ホーム", href: "/teacher", icon: "home" }, ...subjects.map((subject) => ({ id: `subject-${subject.id}`, label: subject.name, href: `/teacher/grade-list?subjectId=${subject.id}`, icon: "sheet" }))];
   return [
     { id: "home" as const, label: "ホーム", href: role === "staff" ? "/staff" : "/teacher", icon: "home" },
     { id: "students" as const, label: "全生徒の成績一覧", href: "/staff/students", icon: "sheet" },
@@ -51,6 +46,8 @@ function Icon({ name }: { name: string }) {
 
 export function SideBar({ currentPage, role = "staff" }: SideBarProps) {
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const dashboard = useRpc(() => getDashboard(), []);
+  const subjects = role === "teacher" && dashboard.data?.role === "teacher" ? dashboard.data.subjects : [];
 
   return (
     <>
@@ -60,7 +57,7 @@ export function SideBar({ currentPage, role = "staff" }: SideBarProps) {
           <div><strong>sansan学園</strong><span>{role === "staff" ? "専任職員" : "講師"}</span></div>
         </div>
         <nav className="sidebar-nav">
-          {navigation(role).map((item) => (
+          {navigation(role, subjects).map((item) => (
             item.id === "csv"
               ? <CsvImportTrigger className={`sidebar-link ${currentPage === item.id ? "is-active" : ""}`} key={item.id}><Icon name={item.icon} /><span>{item.label}</span></CsvImportTrigger>
               : <Link className={`sidebar-link ${currentPage === item.id ? "is-active" : ""}`} href={item.href} key={item.id}><Icon name={item.icon} /><span>{item.label}</span></Link>
