@@ -1,43 +1,50 @@
-import { Hono } from 'hono'
+import { Hono } from "hono";
+import { validator } from "hono/validator";
 
+import { auth } from "../../auth";
+import { isRecord, validationError } from "../lib/http";
+
+type ChangePasswordBody = {
+	currentPassword: string;
+	newPassword: string;
+	revokeOtherSessions?: boolean;
+};
+
+const strongPassword = (password: string) =>
+	password.length >= 8 && password.length <= 128 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password);
+
+const changePasswordValidator = validator("json", (value, c) => {
+	if (!isRecord(value) || typeof value.currentPassword !== "string" || typeof value.newPassword !== "string") {
+		return validationError(c, "現在のパスワードと新しいパスワードを入力してください");
+	}
+	if (value.revokeOtherSessions !== undefined && typeof value.revokeOtherSessions !== "boolean") {
+		return validationError(c, "revokeOtherSessions は真偽値で指定してください");
+	}
+	if (!strongPassword(value.newPassword)) {
+		return validationError(c, "新しいパスワードは8文字以上で、英大文字・英小文字・数字をそれぞれ含めてください", [
+			{ field: "newPassword", message: "パスワード強度が要件を満たしていません" },
+		]);
+	}
+	return {
+		currentPassword: value.currentPassword,
+		newPassword: value.newPassword,
+		...(value.revokeOtherSessions === undefined ? {} : { revokeOtherSessions: value.revokeOtherSessions }),
+	};
+});
+
+const withValidatedPasswordBody = (request: Request, body: ChangePasswordBody) => {
+	const headers = new Headers(request.headers);
+	headers.set("content-type", "application/json");
+	headers.delete("content-length");
+	return new Request(request.url, { method: request.method, headers, body: JSON.stringify(body) });
+};
+
+// Better Auth owns the authentication protocol.  The explicit change-password
+// route adds the product password policy before forwarding to Better Auth.
 const app = new Hono()
+	.post("/change-password", changePasswordValidator, async (c) =>
+		auth.handler(withValidatedPasswordBody(c.req.raw, c.req.valid("json"))),
+	)
+	.on(["GET", "POST"], "/*", (c) => auth.handler(c.req.raw));
 
-app
-	.get('/me', (c) => {
-		return c.json({
-			id: 'user-1',
-			name: 'サンプル講師',
-			email: 'teacher@example.com',
-			role: 'teacher',
-			yearId: 2026,
-			isPasswordChanged: true,
-		})
-	})
-	.post('/auth/login', async (c) => {
-		const body = await c.req.json().catch(() => ({}))
-		return c.json({
-			ok: true,
-			token: `session-${Date.now()}`,
-			user: {
-				email: String((body as { email?: string }).email ?? ''),
-				role: ((body as { role?: 'teacher' | 'staff' }).role ?? 'teacher'),
-			},
-		})
-	})
-	.post('/auth/logout', (c) => c.json({ ok: true }))
-	.post('/auth/change-password', (c) => c.json({ ok: true, isPasswordChanged: true }))
-	.get('/auth/session', (c) => {
-		return c.json({
-			authenticated: true,
-			user: {
-				id: 'user-1',
-				name: 'サンプル講師',
-				email: 'teacher@example.com',
-				role: 'teacher',
-				yearId: 2026,
-				isPasswordChanged: true,
-			},
-		})
-	})
-
-export default app
+export default app;

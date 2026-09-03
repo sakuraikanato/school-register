@@ -1,6 +1,9 @@
 */*/mysql-data
 plans/
 plans/*
+
+designs/*
+
 # dependencies (bun install)
 node_modules
 

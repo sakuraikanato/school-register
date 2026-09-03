@@ -1,27 +1,31 @@
 import { Hono } from 'hono'
 import authRoutes from './auth'
-import yearsRoutes from './years'
-import coursesRoutes from './courses'
-import subjectsRoutes from './subjects'
-import studentsRoutes from './students'
-import teachersRoutes from './teachers'
-import staffRoutes from './staff'
-import weightsRoutes from './weights'
-import gradesRoutes from './grades'
-import screenRoutes from './index'
+import dashboardRoutes from './screens/dashboard'
+import sessionRoutes from './screens/session'
+import staffRoutes from './screens/staff'
+import teacherRoutes from './screens/teacher'
+import courseRoutes from './resources/courses'
+import gradeRoutes from './resources/grades'
+import studentRoutes from './resources/students'
+import subjectRoutes from './resources/subjects'
+import weightRoutes from './resources/weights'
+import yearRoutes from './resources/years'
+import userRoutes from './resources/users'
 
+// Screen aggregation and resource CRUD are mounted separately so the Hono
+// client can infer every route, path parameter, body, and response type.
 const app = new Hono()
-
-app
-	.route('/', authRoutes)
-	.route('/years', yearsRoutes)
-	.route('/courses', coursesRoutes)
-	.route('/subjects', subjectsRoutes)
-	.route('/students', studentsRoutes)
-	.route('/teachers', teachersRoutes)
-	.route('/staff', staffRoutes)
-	.route('/weights', weightsRoutes)
-	.route('/grades', gradesRoutes)
-	.route('/', screenRoutes)
+	.route('/auth', authRoutes)
+	.route('/screens', sessionRoutes)
+	.route('/screens', dashboardRoutes)
+	.route('/screens/teacher', teacherRoutes)
+	.route('/screens/staff', staffRoutes)
+	.route('/years', yearRoutes)
+	.route('/courses', courseRoutes)
+	.route('/subjects', subjectRoutes)
+	.route('/students', studentRoutes)
+	.route('/weights', weightRoutes)
+	.route('/grades', gradeRoutes)
+	.route('/users', userRoutes)
 
 export default app

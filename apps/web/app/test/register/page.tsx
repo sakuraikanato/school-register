@@ -1,9 +1,3 @@
-"use client"
-import { useState } from "react"
-
-
-
-export default function Page() {
-  const []
-  return 
+export default function RegisterTestPage() {
+  return null;
 }

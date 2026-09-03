@@ -1,8 +1,9 @@
-import { boolean, check, index, int, mysqlTable, uniqueIndex } from "drizzle-orm/mysql-core";
+import { boolean, check, index, int, mysqlTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";
 
 import { students } from "./student";
 import { subjects } from "./subject";
+import { user } from "./auth-schema";
 import { years } from "./years";
 
 export const grades = mysqlTable(
@@ -23,6 +24,9 @@ export const grades = mysqlTable(
 			.notNull()
 			.references(() => years.id),
 		score: int("score").notNull(),
+		isConfirmed: boolean("is_confirmed").notNull().default(false),
+		confirmedAt: timestamp("confirmed_at", { fsp: 3 }),
+		confirmedBy: varchar("confirmed_by", { length: 36 }).references(() => user.id),
 	},
 	(table) => [
 		uniqueIndex("grades_student_id_subject_id_year_id_is_first_term_unique").on(
@@ -34,6 +38,7 @@ export const grades = mysqlTable(
 		index("grades_student_id_idx").on(table.studentId),
 		index("grades_subject_id_idx").on(table.subjectId),
 		index("grades_year_id_idx").on(table.yearId),
+		index("grades_confirmation_idx").on(table.subjectId, table.yearId, table.isFirstTerm),
 		check("grades_attendance_range", sql`${table.attendance} between 0 and 100`),
 		check("grades_attitude_range", sql`${table.attitude} between 1 and 10`),
 		check("grades_assignment_range", sql`${table.assignment} between 1 and 10`),

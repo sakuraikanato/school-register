@@ -8,6 +8,13 @@
       "when": 1784701210866,
       "tag": "0000_purple_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1788329431472,
+      "tag": "0001_pink_mastermind",
+      "breakpoints": true
     }
   ]
 }

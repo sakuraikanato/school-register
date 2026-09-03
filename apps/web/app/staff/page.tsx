@@ -1,48 +1,22 @@
-"use client"
-
-import Image from "next/image"
-import { SideBar } from "@/component/sidebar"
-import { Card, CardList } from "@/component/cards"
-import { categories } from "@/utils/category_data"
-
-interface teacher {
-  id: number,
-  name: string,
-  nameHiragana: string,
-  email: string,
-  age: number,
-  gender: "男" | "女" | "その他",
-  isPasswordChanged: boolean,
-  role: "teacher" | "staff",
-  year_id: number,
-}
-
-const teacher: teacher = {
-  id: 1,
-  name: "田中太郎",
-  nameHiragana: "たなかたろう",
-  email: "example@example.com",
-  age: 30,
-  gender: "男",
-  isPasswordChanged: true,
-  role: "staff",
-  year_id: 1
-}
+import { StaffOptionCard } from "@/component/cards";
+import { CsvImportTrigger } from "@/component/modals";
+import { AppShell } from "@/component/sidebar";
+import { StaffMobileHome } from "@/component/staff-mobile";
 
 export default function Page() {
-
   return (
-    <div className="bg-[#FEFFF6] h-screen flex">
-      <SideBar current_page="home"></SideBar>
-      <div className="h-full w-full flex flex-col justify-between p-14 pt-18">
-        <div className="text-black font-bold text-[24px]">ようこそ {teacher.name} 先生</div>
-        <div className="text-black text-2xl">使用機能</div>
-        <CardList>
-          {categories.slice(1).map((category) => (
-            <Card key={category.id} href={category.url}>{category.text}</Card>
-          ))}
-        </CardList>
+    <AppShell currentPage="home">
+      <header className="staff-page-title staff-home-title"><h1>ようこそ　田中太郎 先生</h1></header>
+      <div className="desktop-content staff-home-content">
+        <h2>仕様機能</h2>
+        <div className="staff-option-list">
+          <StaffOptionCard href="/staff/students" title="全生徒の成績一覧" />
+          <StaffOptionCard href="/staff/histories" title="過去の成績一覧" />
+          <StaffOptionCard href="/staff/courses" title="科目成績一覧" />
+          <CsvImportTrigger className="staff-option-card"><span>CSV読み込み</span><span className="staff-option-arrow" aria-hidden="true">›</span></CsvImportTrigger>
+        </div>
       </div>
-    </div>
-  )
+      <div className="mobile-only"><StaffMobileHome /></div>
+    </AppShell>
+  );
 }

@@ -21,7 +21,7 @@ export const user = mysqlTable("user", {
   gender: mysqlEnum("gender", ["男", "女", "その他"]).notNull(),
   isPasswordChanged: boolean("is_password_changed").default(false),
   role: mysqlEnum("role", ["teacher", "staff"]).notNull(),
-  year_id: int("year_id").references(() => years.id).notNull(),
+  yearId: int("year_id").references(() => years.id).notNull(),
   image: text("image"),
   createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { fsp: 3 })
