@@ -110,6 +110,7 @@ export type StudentSummary = {
 	nameHiragana: string
 	yearId: number
 	courseId: number
+	courseIds?: number[]
 	isAttending: boolean
 	gradeNum?: number
 }

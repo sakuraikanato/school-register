@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { app } from "../index";
+import { defaultInitialPassword } from "../lib/csv-import";
 
 describe("screen API routing", () => {
 	test("exposes the health endpoint", async () => {
@@ -29,6 +30,20 @@ describe("screen API routing", () => {
 		});
 		expect(response.status).toBe(400);
 		expect((await response.json()).error.code).toBe("VALIDATION_ERROR");
+	});
+
+	test("uses role-specific default passwords for CSV-created accounts", () => {
+		expect(defaultInitialPassword).toEqual({ staff: "Staff123!", teachers: "Teacher123!" });
+	});
+
+	test("requires an authenticated session for first-login password completion", async () => {
+		const response = await app.request("/api/auth/complete-password-change", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ newPassword: "NewPassword123!" }),
+		});
+		expect(response.status).toBe(401);
+		expect((await response.json()).error.code).toBe("UNAUTHENTICATED");
 	});
 
 	test("mounts Drizzle resource endpoints behind authentication", async () => {

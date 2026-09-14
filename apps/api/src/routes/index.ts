@@ -47,7 +47,7 @@ const gradeLabelFromScore = (score: number): GradeLabel => (score >= 90 ? '秀' 
 const sampleYear = (year: number) => ({ id: year, year })
 const sampleTeacher = (teacherId: string, yearId: number) => ({ id: teacherId, name: `講師 ${teacherId}`, email: `${teacherId}@example.com`, yearId })
 const sampleSubject = (subjectId: number, yearId: number, teacherId = 'teacher-1', courseId = 1) => ({ id: subjectId, name: `科目 ${subjectId}`, teacherId, courseId, yearId })
-const sampleStudent = (studentId: number, yearId: number, courseId = 1, gradeNum = 1) => ({ id: studentId, studentNumber: `S${studentId.toString().padStart(4, '0')}`, schoolGrade: String(gradeNum), name: `生徒 ${studentId}`, nameHiragana: `せいと ${studentId}`, yearId, courseId, isAttending: true, gradeNum })
+const sampleStudent = (studentId: number, yearId: number, courseId = 1, gradeNum = 1) => ({ id: studentId, studentNumber: `S${studentId.toString().padStart(4, '0')}`, schoolGrade: String(gradeNum), name: `生徒 ${studentId}`, nameHiragana: `せいと ${studentId}`, yearId, courseId, courseIds: [courseId], isAttending: true, gradeNum })
 const sampleGrade = (studentId: number, subjectId: number, yearId: number, isFirstTerm: boolean, score = 78) => ({ id: studentId * 100 + subjectId, studentId, subjectId, yearId, isFirstTerm, attendance: 88, attitude: 7, assignment: 8, score })
 const sampleWeight = (teacherId: string, subjectId: number, yearId: number, isFirstTerm: boolean) => ({ id: subjectId * 10 + yearId, teacherId, subjectId, yearId, isFirstTerm, attendanceWeight: 4, attitudeWeight: 3, assignmentWeight: 3 })
 

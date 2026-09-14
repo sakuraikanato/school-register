@@ -2,7 +2,9 @@
   "name": "api",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "seed:users": "bun run scripts/seed-users.ts"
+    "seed:users": "bun run scripts/seed-users.ts",
+    "seed:staff": "bun run scripts/seed-users.ts --staff-only",
+    "import:csv": "bun run scripts/import-csv.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.0",

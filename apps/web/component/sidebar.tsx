@@ -5,6 +5,8 @@ import { useState } from "react";
 import { CsvImportTrigger, LogoutModal } from "@/component/modals";
 import { getDashboard } from "@/utils/client";
 import { useRpc } from "@/utils/use-rpc";
+import { NotFoundView } from "@/component/not-found-view";
+import { InactivityLogout } from "@/component/inactivity-logout";
 
 type PageName = string;
 type Role = "staff" | "teacher";
@@ -87,14 +89,27 @@ export function MobileTeacherLogout() {
   );
 }
 
+export function RoleGate({ role, children }: Readonly<{ role: Role; children: React.ReactNode }>) {
+  const dashboard = useRpc(() => getDashboard(), []);
+
+  // Do not mount the protected tree until the session/role has been resolved.
+  // This prevents an unauthorized route from flashing its initial HTML.
+  if (dashboard.loading) return <main className="route-guard-loading" aria-busy="true"><p>読み込み中...</p></main>;
+  if (dashboard.error || !dashboard.data) return <main className="route-guard-loading" aria-busy="true" />;
+  if (dashboard.data.role !== role) return <NotFoundView />;
+  return <><InactivityLogout />{children}</>;
+}
+
 export function AppShell({ children, currentPage, role = "staff" }: Readonly<{ children: React.ReactNode; currentPage: PageName; role?: Role }>) {
   return (
-    <div className={`app-shell ${role === "staff" ? "staff-shell" : "teacher-shell"}`}>
-      <SideBar currentPage={currentPage} role={role} />
-      <main className="app-main">
-        <div className="mobile-brand"><span className="brand-mark">S</span><span>sansan学園 成績管理</span></div>
-        {children}
-      </main>
-    </div>
+    <RoleGate role={role}>
+      <div className={`app-shell ${role === "staff" ? "staff-shell" : "teacher-shell"}`}>
+        <SideBar currentPage={currentPage} role={role} />
+        <main className="app-main">
+          <div className="mobile-brand"><span className="brand-mark">S</span><span>sansan学園 成績管理</span></div>
+          {children}
+        </main>
+      </div>
+    </RoleGate>
   );
 }

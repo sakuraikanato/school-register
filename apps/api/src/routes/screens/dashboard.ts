@@ -2,7 +2,7 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { db } from "../../db";
-import { courses, grades, students, subjects, weights } from "../../db/schema";
+import { courses, grades, studentCourses, students, subjects, weights } from "../../db/schema";
 import { termLabel } from "../../lib/grade";
 import { notFound, unauthorized } from "../../lib/http";
 import { getCurrentActor } from "../../lib/session";
@@ -17,7 +17,7 @@ const app = new Hono()
 		if (!actor) return unauthorized(c);
 
 		const query = c.req.valid("query");
-		const year = await selectedYear(query.yearId ?? actor.yearId);
+		const year = await selectedYear(query.yearId);
 		if (!year) return notFound(c, "年度");
 		const firstTerm = isFirstTerm(query);
 
@@ -46,7 +46,8 @@ const app = new Hono()
 					: db
 						.select({ key: subjects.id, count: count(students.id) })
 						.from(subjects)
-						.leftJoin(students, and(eq(students.courseId, subjects.courseId), eq(students.yearId, year.id), eq(students.isAttending, true)))
+						.leftJoin(studentCourses, eq(studentCourses.courseId, subjects.courseId))
+						.leftJoin(students, and(eq(students.id, studentCourses.studentId), eq(students.yearId, year.id), eq(students.isAttending, true)))
 						.where(inArray(subjects.id, subjectIds))
 						.groupBy(subjects.id),
 				subjectIds.length === 0

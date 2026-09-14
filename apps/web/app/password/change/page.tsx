@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { completePasswordChange, getSession, RpcError } from "@/utils/client";
 
 function PasswordVisibilityIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -11,17 +13,31 @@ function PasswordVisibilityIcon({ visible }: { visible: boolean }) {
 }
 
 export default function PasswordChangePage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [message, setMessage] = useState("");
-  const changePassword = (event: FormEvent<HTMLFormElement>) => {
+  const [submitting, setSubmitting] = useState(false);
+  const changePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const password = String(data.get("password") || "");
     const confirmation = String(data.get("confirmation") || "");
     if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) return setMessage("8文字以上で、英大文字・英小文字・数字を含めてください。");
     if (password !== confirmation) return setMessage("確認用パスワードが一致しません。");
-    setMessage("パスワードを変更しました。ログイン画面へ戻ります。");
+    setSubmitting(true);
+    setMessage("");
+    try {
+      await completePasswordChange(password);
+      const session = await getSession();
+      setMessage("パスワードを変更しました。画面を移動します。");
+      if (session.authenticated) router.replace(session.user.role === "staff" ? "/staff" : "/teacher");
+      else router.replace("/");
+    } catch (error) {
+      setMessage(error instanceof RpcError ? error.message : "パスワードを変更できませんでした。");
+    } finally {
+      setSubmitting(false);
+    }
   };
   return (
     <main className="password-page">
@@ -48,7 +64,7 @@ export default function PasswordChangePage() {
             </label>
           </div>
           {message && <p className="form-error password-message" role="status">{message}</p>}
-          <button className="password-change-submit" type="submit">変更</button>
+          <button className="password-change-submit" type="submit" disabled={submitting}>{submitting ? "変更中…" : "変更"}</button>
         </form>
       </section>
       <section className="password-change-info" aria-label="パスワードの条件">

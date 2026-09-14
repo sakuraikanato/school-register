@@ -15,6 +15,34 @@
       "when": 1788329431472,
       "tag": "0001_pink_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1788837439035,
+      "tag": "0002_broken_wrecking_crew",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1788837839041,
+      "tag": "0003_wise_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1788868802687,
+      "tag": "0005_illegal_marvex",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1788868860181,
+      "tag": "0006_long_wither",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { index, int, mysqlTable, uniqueIndex, varchar } from "drizzle-orm/mysql-
 import { courses } from "./course";
 import { user } from "./auth-schema";
 import { years } from "./years";
+import { userYears } from "./user-year";
 
 export const subjects = mysqlTable(
 	"subjects",
@@ -12,6 +13,7 @@ export const subjects = mysqlTable(
 		teacherId: varchar("teacher_id", { length: 36 })
 			.notNull()
 			.references(() => user.id),
+		teacherYearId: varchar("teacher_year_id", { length: 36 }).references(() => userYears.id),
 		courseId: int("course_id")
 			.notNull()
 			.references(() => courses.id),

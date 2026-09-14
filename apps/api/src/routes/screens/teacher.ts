@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { db } from "../../db";
-import { courses, grades, students, subjects, weights } from "../../db/schema";
+import { courses, grades, studentCourses, students, subjects, weights } from "../../db/schema";
 import {
 	calculateScore,
 	gradeLabelFromScore,
@@ -79,6 +79,15 @@ const subjectFor = async (subjectId: number, yearId: number) => {
 
 const canEditSubject = (actor: CurrentActor, teacherId: string) => isStaff(actor) || actor.id === teacherId;
 
+const hasConfirmedGrades = async (subjectId: number, yearId: number, firstTerm: boolean) => {
+	const [confirmed] = await db
+		.select({ id: grades.id })
+		.from(grades)
+		.where(and(eq(grades.subjectId, subjectId), eq(grades.yearId, yearId), eq(grades.isFirstTerm, firstTerm), eq(grades.isConfirmed, true)))
+		.limit(1);
+	return Boolean(confirmed);
+};
+
 const app = new Hono()
 	.get("/grade-entry/:subjectId", screenQueryValidator, async (c) => {
 		const actor = await getCurrentActor(c);
@@ -87,11 +96,11 @@ const app = new Hono()
 		const subjectId = pathId(c.req.param("subjectId"));
 		if (!subjectId) return notFound(c, "教科");
 		const query = c.req.valid("query");
-		const year = await selectedYear(query.yearId ?? actor.yearId);
+		const year = await selectedYear(query.yearId);
 		if (!year) return notFound(c, "年度");
 		const subject = await subjectFor(subjectId, year.id);
 		if (!subject) return notFound(c, "教科");
-		if (!canEditSubject(actor, subject.teacherId)) return forbidden(c);
+		if (!canEditSubject(actor, subject.teacherId)) return notFound(c, "教科");
 
 		const firstTerm = isFirstTerm(query);
 		const [weightRows, studentRows, gradeRows] = await Promise.all([
@@ -110,7 +119,8 @@ const app = new Hono()
 					isAttending: students.isAttending,
 				})
 				.from(students)
-				.where(and(eq(students.courseId, subject.courseId), eq(students.yearId, year.id)))
+				.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+				.where(and(eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id)))
 				.orderBy(asc(students.studentNumber)),
 			db
 				.select()
@@ -140,9 +150,10 @@ const app = new Hono()
 					student,
 					grade,
 					gradeLabel: grade ? gradeLabelFromScore(grade.score) : null,
-					editable: !grade?.isConfirmed || isStaff(actor),
+					editable: !grade?.isConfirmed,
 				};
 			}),
+			isFinalized: gradeRows.some((grade) => grade.isConfirmed),
 			progress: { total: studentRows.filter((student) => student.isAttending).length, missing: missingCount },
 		});
 	})
@@ -153,11 +164,11 @@ const app = new Hono()
 		const subjectId = pathId(c.req.param("subjectId"));
 		if (!subjectId) return notFound(c, "教科");
 		const query = c.req.valid("query");
-		const year = await selectedYear(query.yearId ?? actor.yearId);
+		const year = await selectedYear(query.yearId);
 		if (!year) return notFound(c, "年度");
 		const subject = await subjectFor(subjectId, year.id);
 		if (!subject) return notFound(c, "教科");
-		if (!canEditSubject(actor, subject.teacherId)) return forbidden(c);
+		if (!canEditSubject(actor, subject.teacherId)) return notFound(c, "教科");
 
 		const firstTerm = isFirstTerm(query);
 		const [weight] = await db
@@ -182,7 +193,7 @@ const app = new Hono()
 		const subjectId = pathId(c.req.param("subjectId"));
 		if (!subjectId) return notFound(c, "教科");
 		const query = c.req.valid("query");
-		const year = await selectedYear(query.yearId ?? actor.yearId);
+		const year = await selectedYear(query.yearId);
 		if (!year) return notFound(c, "年度");
 		const subject = await subjectFor(subjectId, year.id);
 		if (!subject) return notFound(c, "教科");
@@ -190,6 +201,9 @@ const app = new Hono()
 
 		const value = c.req.valid("json") as WeightValues;
 		const firstTerm = isFirstTerm(query);
+		if (await hasConfirmedGrades(subject.id, year.id, firstTerm)) {
+			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績があるため、この学期の評価基準は変更できません" } }, 409);
+		}
 		await db
 			.insert(weights)
 			.values({ ...value, teacherId: subject.teacherId, subjectId: subject.id, yearId: year.id, isFirstTerm: firstTerm })
@@ -209,13 +223,16 @@ const app = new Hono()
 		const subjectId = pathId(c.req.param("subjectId"));
 		if (!subjectId) return notFound(c, "教科");
 		const query = c.req.valid("query");
-		const year = await selectedYear(query.yearId ?? actor.yearId);
+		const year = await selectedYear(query.yearId);
 		if (!year) return notFound(c, "年度");
 		const subject = await subjectFor(subjectId, year.id);
 		if (!subject) return notFound(c, "教科");
 		if (!canEditSubject(actor, subject.teacherId)) return forbidden(c);
 
 		const firstTerm = isFirstTerm(query);
+		if (await hasConfirmedGrades(subject.id, year.id, firstTerm)) {
+			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は変更できません" } }, 409);
+		}
 		const [weight] = await db
 			.select()
 			.from(weights)
@@ -231,7 +248,8 @@ const app = new Hono()
 			db
 				.select({ id: students.id })
 				.from(students)
-				.where(and(inArray(students.id, studentIds), eq(students.courseId, subject.courseId), eq(students.yearId, year.id))),
+				.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+				.where(and(inArray(students.id, studentIds), eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id))),
 			db
 				.select({ studentId: grades.studentId, isConfirmed: grades.isConfirmed })
 				.from(grades)
@@ -241,8 +259,8 @@ const app = new Hono()
 		if (enrolledRows.length !== studentIds.length) {
 			return validationError(c, "この教科に属しない生徒が含まれています");
 		}
-		if (!isStaff(actor) && existingRows.some((grade) => grade.isConfirmed)) {
-			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は教科担当者から変更できません" } }, 409);
+		if (existingRows.some((grade) => grade.isConfirmed)) {
+			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は変更できません" } }, 409);
 		}
 
 		const saved = body.grades.map((grade) => ({

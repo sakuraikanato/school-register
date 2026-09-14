@@ -7,25 +7,30 @@ import { RpcError } from "@/utils/client";
 export type RpcState<T> = Readonly<{
   data: T | null;
   error: string | null;
+  status: number | null;
   loading: boolean;
 }>;
 
 export function useRpc<T>(request: () => Promise<T>, dependencies: readonly unknown[]): RpcState<T> {
-  const [state, setState] = useState<RpcState<T>>({ data: null, error: null, loading: true });
+  const [state, setState] = useState<RpcState<T>>({ data: null, error: null, status: null, loading: true });
   const router = useRouter();
 
   useEffect(() => {
     let active = true;
     request()
       .then((data) => {
-        if (active) setState({ data, error: null, loading: false });
+        if (active) setState({ data, error: null, status: null, loading: false });
       })
       .catch((error: unknown) => {
         if (error instanceof RpcError && error.status === 401 && window.location.pathname !== "/") {
           router.replace("/");
           return;
         }
-        if (active) setState({ data: null, error: error instanceof Error ? error.message : "データを取得できませんでした", loading: false });
+        if (error instanceof RpcError && error.status === 403 && window.location.pathname.startsWith("/staff")) {
+          router.replace("/404");
+          return;
+        }
+        if (active) setState({ data: null, error: error instanceof Error ? error.message : "データを取得できませんでした", status: error instanceof RpcError ? error.status : null, loading: false });
       });
     return () => {
       active = false;

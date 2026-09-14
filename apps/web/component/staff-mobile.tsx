@@ -9,12 +9,19 @@ type StaffMobileBreadcrumbProps = Readonly<{
   activeIndex?: number;
 }>;
 
+const breadcrumbHref = (label: string) => ({
+  "ホーム": "/staff",
+  "全生徒の成績一覧": "/staff/students",
+  "過去の成績一覧": "/staff/histories",
+  "科目一覧": "/staff/courses",
+}[label]);
+
 export function StaffMobileBreadcrumb({ items, activeIndex }: StaffMobileBreadcrumbProps) {
   return (
     <nav className="staff-mobile-breadcrumb" aria-label="パンくずリスト">
       {items.map((item, index) => (
         <span key={`${item}-${index}`} className={index === activeIndex ? "is-active" : undefined}>
-          {item}
+          {index !== (activeIndex ?? items.length - 1) && breadcrumbHref(item) ? <Link href={breadcrumbHref(item)!}>{item}</Link> : item}
           {index < items.length - 1 && <b aria-hidden="true">›</b>}
         </span>
       ))}
@@ -110,13 +117,13 @@ export function StaffMobileStudents({ students }: Readonly<{ students: readonly 
   );
 }
 
-export function StaffMobileYears({ years }: Readonly<{ years: readonly string[] }>) {
+export function StaffMobileYears({ years }: Readonly<{ years: readonly { id: number; label: string }[] }>) {
   return (
     <section className="staff-mobile-view staff-mobile-years-page">
       <StaffMobileBreadcrumb items={["ホーム", "過去の成績一覧"]} />
       <h1 className="staff-mobile-page-heading">過去の成績</h1>
       <div className="staff-mobile-year-grid">
-        {years.map((year, index) => <Link className="staff-mobile-year-card" href="/staff/students" key={`${year}-${index}`}>{year}</Link>)}
+        {years.map((year) => <Link className="staff-mobile-year-card" href={`/staff/students?yearId=${year.id}`} key={year.id}>{year.label}</Link>)}
       </div>
       <StaffMobileLogout />
     </section>

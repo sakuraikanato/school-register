@@ -1,15 +1,11 @@
 import { boolean, date, index, int, mysqlEnum, mysqlTable, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
-import { courses } from "./course";
 import { years } from "./years";
 
 export const students = mysqlTable(
 	"students",
 	{
 		id: int("id").autoincrement().primaryKey(),
-		courseId: int("course_id")
-			.notNull()
-			.references(() => courses.id),
 		studentNumber: varchar("student_number", { length: 50 }).notNull(),
 		schoolGrade: varchar("school_grade", { length: 50 }).notNull(),
 		name: varchar("name", { length: 255 }).notNull(),
@@ -26,8 +22,7 @@ export const students = mysqlTable(
 		isAttending: boolean("is_attending").notNull().default(true),
 	},
 	(table) => [
-		uniqueIndex("students_student_number_unique").on(table.studentNumber),
-		index("students_course_id_idx").on(table.courseId),
+		uniqueIndex("students_student_number_year_id_unique").on(table.studentNumber, table.yearId),
 		index("students_year_id_idx").on(table.yearId),
 	],
 );

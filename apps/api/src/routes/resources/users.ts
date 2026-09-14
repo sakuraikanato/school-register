@@ -6,7 +6,7 @@ import { validator } from "hono/validator";
 import { hashPassword } from "better-auth/crypto";
 
 import { db } from "../../db";
-import { account, user, years } from "../../db/schema";
+import { account, user, userYears, years } from "../../db/schema";
 import { forbidden, notFound, unauthorized, validationError } from "../../lib/http";
 import {
 	conflict,
@@ -109,9 +109,10 @@ const app = new Hono()
 		if (actor instanceof Response) return actor;
 		const query = c.req.valid("query");
 		const conditions = [];
-		if (query.yearId) conditions.push(eq(user.yearId, query.yearId));
 		if (query.search) conditions.push(like(user.name, `%${query.search}%`));
-		const items = await db.select(profileSelect).from(user).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(asc(user.name));
+		const items = query.yearId
+			? await db.select(profileSelect).from(user).innerJoin(userYears, eq(userYears.userId, user.id)).where(and(eq(userYears.yearId, query.yearId), ...conditions)).orderBy(asc(user.name))
+			: await db.select(profileSelect).from(user).where(conditions.length > 0 ? and(...conditions) : undefined).orderBy(asc(user.name));
 		return c.json({ items, total: items.length });
 	})
 	.get("/:id", async (c) => {
@@ -154,6 +155,7 @@ const app = new Hono()
 					createdAt: now,
 					updatedAt: now,
 				});
+				await tx.insert(userYears).values({ id: randomUUID(), userId: id, yearId: body.yearId });
 			});
 			return c.json({ item: await findUser(id) }, 201);
 		} catch (error) {
@@ -172,6 +174,10 @@ const app = new Hono()
 		try {
 			await db.transaction(async (tx) => {
 				if (Object.keys(profile).length > 0) await tx.update(user).set({ ...profile, ...(initialPassword === undefined ? {} : { isPasswordChanged: false }) }).where(eq(user.id, id));
+				if (body.yearId !== undefined) await tx.insert(userYears).values({ id: randomUUID(), userId: id, yearId: body.yearId }).catch(async () => {
+					const [existingMembership] = await tx.select({ id: userYears.id }).from(userYears).where(and(eq(userYears.userId, id), eq(userYears.yearId, body.yearId as number))).limit(1);
+					if (!existingMembership) throw new Error("ユーザーの年度所属を登録できませんでした");
+				});
 				if (initialPassword !== undefined) {
 					await tx.update(account).set({ password: await hashPassword(initialPassword), updatedAt: new Date() }).where(and(eq(account.userId, id), eq(account.providerId, "credential")));
 				}

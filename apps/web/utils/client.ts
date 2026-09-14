@@ -10,19 +10,24 @@ export const client = hc<AppType>(apiBaseUrl, {
 });
 
 export type ScreenQuery = Readonly<{
-  yearId?: number;
-  courseId?: number;
-  search?: string;
-  term?: "first" | "second";
+	yearId?: number;
+	courseId?: number;
+	search?: string;
+	studentNumber?: string;
+	term?: "first" | "second";
 }>;
 
 type RpcSuccess<T> = Exclude<T, { error: unknown }>;
 export type DashboardResponse = RpcSuccess<InferResponseType<typeof client.api.screens.dashboard.$get>>;
+export type SessionResponse = RpcSuccess<InferResponseType<typeof client.api.screens.session.$get>>;
+export type CompletePasswordChangeResponse = RpcSuccess<InferResponseType<typeof client.api.auth["complete-password-change"]["$post"]>>;
 export type StaffStudentsResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff.students.$get>>;
 export type StaffHistoryResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff.history.$get>>;
 export type StaffGradeSheetResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff["grade-sheet"][":studentId"]["$get"]>>;
 export type StaffFinalizationResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff.finalization.$get>>;
 export type StaffCsvImportResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff["csv-import"]["$get"]>>;
+export type StaffCsvPreviewResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff["csv-import"]["preview"]["$post"]>>;
+export type StaffCsvCommitResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff["csv-import"]["import"]["$post"]>>;
 export type TeacherGradeEntryResponse = RpcSuccess<InferResponseType<typeof client.api.screens.teacher["grade-entry"][":subjectId"]["$get"]>>;
 export type CoursesResponse = RpcSuccess<InferResponseType<typeof client.api.courses.$get>>;
 export type SubjectsResponse = RpcSuccess<InferResponseType<typeof client.api.subjects.$get>>;
@@ -30,6 +35,7 @@ export type YearsResponse = RpcSuccess<InferResponseType<typeof client.api.years
 export type SavedWeightResponse = RpcSuccess<InferResponseType<typeof client.api.screens.teacher["grade-entry"][":subjectId"]["weight"]["$put"]>>;
 export type SavedGradesResponse = RpcSuccess<InferResponseType<typeof client.api.screens.teacher["grade-entry"][":subjectId"]["grades"]["$put"]>>;
 export type StaffFinalizeResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff.finalization[":subjectId"]["$post"]>>;
+export type StaffUnlockResponse = RpcSuccess<InferResponseType<typeof client.api.screens.staff.finalization[":subjectId"]["unlock"]["$post"]>>;
 
 type ErrorBody = { error?: { message?: string } };
 
@@ -43,7 +49,15 @@ export class RpcError extends Error {
   }
 }
 
-const screenQuery = (query: ScreenQuery) => ({ yearId: query.yearId, term: query.term ?? "first" as const });
+// Leaving term out lets the API choose the current term from the academic
+// calendar. A term is only sent when a non-UI integration explicitly supplies it.
+type ScreenRequestQuery = { yearId?: number; term: "first" | "second"; search?: string; studentNumber?: string };
+const screenQuery = (query: ScreenQuery): ScreenRequestQuery => {
+	const base = { yearId: query.yearId, search: query.search, studentNumber: query.studentNumber };
+  // The API resolves an omitted term from the academic calendar. The cast
+  // keeps the generated Hono client contract while allowing that omission.
+  return query.term ? { ...base, term: query.term } : base as ScreenRequestQuery;
+};
 const resourceQuery = (query: ScreenQuery) => ({
   yearId: query.yearId,
   courseId: query.courseId,
@@ -64,6 +78,14 @@ export function getDashboard(query: ScreenQuery = {}) {
   return readRpc<DashboardResponse>(client.api.screens.dashboard.$get({ query: screenQuery(query) }));
 }
 
+export function getSession() {
+  return readRpc<SessionResponse>(client.api.screens.session.$get());
+}
+
+export function completePasswordChange(newPassword: string) {
+  return readRpc<CompletePasswordChangeResponse>(client.api.auth["complete-password-change"].$post({ json: { newPassword } }));
+}
+
 export function getStaffStudents(query: ScreenQuery = {}) {
   return readRpc<StaffStudentsResponse>(client.api.screens.staff.students.$get({ query: screenQuery(query) }));
 }
@@ -82,6 +104,14 @@ export function getStaffFinalization(query: ScreenQuery = {}) {
 
 export function getStaffCsvImport() {
   return readRpc<StaffCsvImportResponse>(client.api.screens.staff["csv-import"].$get());
+}
+
+export function previewStaffCsv(resource: StaffCsvImportResponse["resources"][number]["value"], csvText: string) {
+  return readRpc<StaffCsvPreviewResponse>(client.api.screens.staff["csv-import"].preview.$post({ json: { resource, csvText } }));
+}
+
+export function importStaffCsv(resource: StaffCsvImportResponse["resources"][number]["value"], csvText: string, year: number) {
+  return readRpc<StaffCsvCommitResponse>(client.api.screens.staff["csv-import"].import.$post({ json: { resource, csvText, year } }));
 }
 
 export function getTeacherGradeEntry(subjectId: number, query: ScreenQuery = {}) {
@@ -118,6 +148,13 @@ export function saveTeacherGrades(subjectId: number, query: ScreenQuery, grades:
 
 export function finalizeStaffSubject(subjectId: number, query: ScreenQuery) {
   return readRpc<StaffFinalizeResponse>(client.api.screens.staff.finalization[":subjectId"].$post({
+    param: { subjectId: String(subjectId) },
+    query: screenQuery(query),
+  }));
+}
+
+export function unlockStaffSubject(subjectId: number, query: ScreenQuery = {}) {
+  return readRpc<StaffUnlockResponse>(client.api.screens.staff.finalization[":subjectId"].unlock.$post({
     param: { subjectId: String(subjectId) },
     query: screenQuery(query),
   }));

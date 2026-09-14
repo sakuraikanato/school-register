@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { db } from "../../db";
-import { grades, students, subjects, user, weights } from "../../db/schema";
+import { grades, studentCourses, students, subjects, user, weights } from "../../db/schema";
 import { calculateScore, validateGradeValues, type GradeValues } from "../../lib/grade";
 import { forbidden, notFound, unauthorized, validationError } from "../../lib/http";
 import {
@@ -105,12 +105,13 @@ const findGrade = async (id: number) => {
 
 const ensureGradeRelations = async (studentId: number, subjectId: number, yearId: number) => {
 	const [student, subject] = await Promise.all([
-		db.select({ id: students.id, courseId: students.courseId, yearId: students.yearId }).from(students).where(eq(students.id, studentId)).limit(1),
+		db.select({ id: students.id, yearId: students.yearId }).from(students).where(eq(students.id, studentId)).limit(1),
 		db.select({ id: subjects.id, courseId: subjects.courseId, yearId: subjects.yearId, teacherId: subjects.teacherId }).from(subjects).where(eq(subjects.id, subjectId)).limit(1),
 	]);
 	if (!student[0]) return { ok: false as const, error: "生徒" };
 	if (!subject[0]) return { ok: false as const, error: "科目" };
-	if (student[0].yearId !== yearId || subject[0].yearId !== yearId || student[0].courseId !== subject[0].courseId) return { ok: false as const, error: "生徒・科目・年度" };
+	const [enrollment] = await db.select({ studentId: studentCourses.studentId }).from(studentCourses).where(and(eq(studentCourses.studentId, studentId), eq(studentCourses.courseId, subject[0].courseId))).limit(1);
+	if (student[0].yearId !== yearId || subject[0].yearId !== yearId || !enrollment) return { ok: false as const, error: "生徒・科目・年度" };
 	return { ok: true as const, subject: subject[0] };
 };
 
@@ -121,6 +122,15 @@ const weightFor = async (teacherId: string, subjectId: number, yearId: number, i
 		.where(and(eq(weights.teacherId, teacherId), eq(weights.subjectId, subjectId), eq(weights.yearId, yearId), eq(weights.isFirstTerm, isFirstTerm)))
 		.limit(1);
 	return weight;
+};
+
+const hasConfirmedGrades = async (subjectId: number, yearId: number, isFirstTerm: boolean) => {
+	const [confirmed] = await db
+		.select({ id: grades.id })
+		.from(grades)
+		.where(and(eq(grades.subjectId, subjectId), eq(grades.yearId, yearId), eq(grades.isFirstTerm, isFirstTerm), eq(grades.isConfirmed, true)))
+		.limit(1);
+	return Boolean(confirmed);
 };
 
 const app = new Hono()
@@ -179,6 +189,9 @@ const app = new Hono()
 		if (actor.role !== "staff" && relation.subject.teacherId !== actor.id) return forbidden(c);
 		const weight = await weightFor(relation.subject.teacherId, body.subjectId, body.yearId, body.isFirstTerm);
 		if (!weight) return c.json({ error: { code: "WEIGHT_NOT_CONFIGURED", message: "先に評価基準を登録してください" } }, 422);
+		if (await hasConfirmedGrades(body.subjectId, body.yearId, body.isFirstTerm)) {
+			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は追加できません" } }, 409);
+		}
 		try {
 			const result = await db.insert(grades).values({
 				studentId: body.studentId,
@@ -204,7 +217,7 @@ const app = new Hono()
 		const existing = await findGrade(id);
 		if (!existing) return notFound(c, "成績");
 		if (actor.role !== "staff" && existing.teacherId !== actor.id) return forbidden(c);
-		if (existing.isConfirmed && actor.role !== "staff") return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は編集できません" } }, 409);
+		if (existing.isConfirmed) return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は編集できません" } }, 409);
 		const body = c.req.valid("json");
 		const merged = {
 			studentId: body.studentId ?? existing.studentId,
@@ -220,6 +233,9 @@ const app = new Hono()
 		const relation = await ensureGradeRelations(merged.studentId, merged.subjectId, merged.yearId);
 		if (!relation.ok) return notFound(c, relation.error);
 		if (actor.role !== "staff" && relation.subject.teacherId !== actor.id) return forbidden(c);
+		if (await hasConfirmedGrades(merged.subjectId, merged.yearId, merged.isFirstTerm)) {
+			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は変更できません" } }, 409);
+		}
 		const weight = await weightFor(relation.subject.teacherId, merged.subjectId, merged.yearId, merged.isFirstTerm);
 		if (!weight) return c.json({ error: { code: "WEIGHT_NOT_CONFIGURED", message: "先に評価基準を登録してください" } }, 422);
 		try {
@@ -238,7 +254,10 @@ const app = new Hono()
 		const existing = await findGrade(id);
 		if (!existing) return notFound(c, "成績");
 		if (actor.role !== "staff" && existing.teacherId !== actor.id) return forbidden(c);
-		if (existing.isConfirmed && actor.role !== "staff") return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は削除できません" } }, 409);
+		if (existing.isConfirmed) return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は削除できません" } }, 409);
+		if (await hasConfirmedGrades(existing.subjectId, existing.yearId, existing.isFirstTerm)) {
+			return c.json({ error: { code: "GRADE_CONFIRMED", message: "確定済みの成績は削除できません" } }, 409);
+		}
 		const result = await db.delete(grades).where(eq(grades.id, id));
 		if (result[0].affectedRows === 0) return notFound(c, "成績");
 		return c.json({ status: "deleted" as const, id });

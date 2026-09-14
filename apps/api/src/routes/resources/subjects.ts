@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
+
 import { and, asc, eq, like } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { db } from "../../db";
-import { courses, subjects, user, years } from "../../db/schema";
+import { courses, subjects, user, userYears, years } from "../../db/schema";
 import { notFound, unauthorized, validationError } from "../../lib/http";
 import {
 	conflict,
@@ -70,6 +72,7 @@ const findSubject = async (id: number) => {
 			id: subjects.id,
 			name: subjects.name,
 			teacherId: subjects.teacherId,
+			teacherYearId: subjects.teacherYearId,
 			teacherName: user.name,
 			courseId: subjects.courseId,
 			courseName: courses.name,
@@ -96,6 +99,14 @@ const ensureSubjectRelations = async (teacherId: string, courseId: number, yearI
 	return null;
 };
 
+const ensureTeacherYear = async (teacherId: string, yearId: number) => {
+	const [existing] = await db.select({ id: userYears.id }).from(userYears).where(and(eq(userYears.userId, teacherId), eq(userYears.yearId, yearId))).limit(1);
+	if (existing) return existing.id;
+	const id = randomUUID();
+	await db.insert(userYears).values({ id, userId: teacherId, yearId });
+	return id;
+};
+
 const app = new Hono()
 	.get("/", resourceQueryValidator, async (c) => {
 		const actor = await requireActor(c);
@@ -110,6 +121,7 @@ const app = new Hono()
 				id: subjects.id,
 				name: subjects.name,
 				teacherId: subjects.teacherId,
+				teacherYearId: subjects.teacherYearId,
 				teacherName: user.name,
 				courseId: subjects.courseId,
 				courseName: courses.name,
@@ -139,7 +151,8 @@ const app = new Hono()
 		const invalidRelation = await ensureSubjectRelations(body.teacherId, body.courseId, body.yearId);
 		if (invalidRelation) return notFound(c, invalidRelation);
 		try {
-			const result = await db.insert(subjects).values(body);
+			const teacherYearId = await ensureTeacherYear(body.teacherId, body.yearId);
+			const result = await db.insert(subjects).values({ ...body, teacherYearId });
 			return c.json({ item: await findSubject(Number(result[0].insertId)) }, 201);
 		} catch (error) {
 			if (isDatabaseConstraintError(error)) return conflict(c, "同じ年度・コースに同名の科目は登録できません");
@@ -154,10 +167,14 @@ const app = new Hono()
 		const existing = await findSubject(id);
 		if (!existing) return notFound(c, "科目");
 		const body = c.req.valid("json");
-		const relationError = await ensureSubjectRelations(body.teacherId ?? existing.teacherId, body.courseId ?? existing.courseId, body.yearId ?? existing.yearId);
+		const teacherId = body.teacherId ?? existing.teacherId;
+		const courseId = body.courseId ?? existing.courseId;
+		const yearId = body.yearId ?? existing.yearId;
+		const relationError = await ensureSubjectRelations(teacherId, courseId, yearId);
 		if (relationError) return notFound(c, relationError);
 		try {
-			await db.update(subjects).set(body).where(eq(subjects.id, id));
+			const teacherYearId = await ensureTeacherYear(teacherId, yearId);
+			await db.update(subjects).set({ ...body, teacherYearId }).where(eq(subjects.id, id));
 			return c.json({ item: await findSubject(id) });
 		} catch (error) {
 			if (isDatabaseConstraintError(error)) return conflict(c, "同じ年度・コースに同名の科目は登録できません");

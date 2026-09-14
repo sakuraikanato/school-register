@@ -2,6 +2,8 @@ export * from "./auth-schema";
 export * from "./course";
 export * from "./grade";
 export * from "./student";
+export * from "./student-course";
 export * from "./subject";
 export * from "./years";
 export * from "./weight";
+export * from "./user-year";

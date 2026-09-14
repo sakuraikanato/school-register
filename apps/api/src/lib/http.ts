@@ -1,10 +1,12 @@
 import type { Context } from "hono";
+import { currentTerm } from "./academic-calendar";
 
 export type ScreenQuery = {
 	yearId?: number;
 	term: "first" | "second";
 	courseId?: number;
 	search?: string;
+	studentNumber?: string;
 };
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -23,8 +25,9 @@ export const parseScreenQuery = (value: unknown):
 
 	const yearId = value.yearId === undefined ? undefined : parsePositiveInt(value.yearId);
 	const courseId = value.courseId === undefined ? undefined : parsePositiveInt(value.courseId);
-	const term = value.term === undefined ? "first" : value.term;
+	const term = value.term === undefined ? currentTerm() : value.term;
 	const search = value.search;
+	const studentNumber = value.studentNumber;
 
 	if ((value.yearId !== undefined && yearId === undefined) || (value.courseId !== undefined && courseId === undefined)) {
 		return { success: false, message: "年度とコースは正の整数で指定してください" };
@@ -35,8 +38,11 @@ export const parseScreenQuery = (value: unknown):
 	if (search !== undefined && typeof search !== "string") {
 		return { success: false, message: "検索語が不正です" };
 	}
+	if (studentNumber !== undefined && (typeof studentNumber !== "string" || studentNumber.trim().length === 0 || studentNumber.length > 50)) {
+		return { success: false, message: "学籍番号が不正です" };
+	}
 
-	return { success: true, data: { yearId, courseId, term, search } };
+	return { success: true, data: { yearId, courseId, term, search, studentNumber: typeof studentNumber === "string" ? studentNumber.trim() : undefined } };
 };
 
 export const validationError = (c: Context, message: string, fields?: { field: string; message: string }[]) =>

@@ -16,6 +16,10 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## 開発者モード（成績入力のテスト用）
+
+ローカルで年度・学期を切り替えて成績入力を確認する場合は、`apps/web/.env` に `NEXT_PUBLIC_DEVELOPER_MODE=true` を設定してWeb開発サーバーを再起動してください。未設定または `true` 以外の場合は開発者向けUIを表示せず、通常の年度・学期判定を使用します。
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

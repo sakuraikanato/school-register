@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { db } from "../../db";
-import { courses, students, subjects } from "../../db/schema";
+import { courses, studentCourses, students, subjects } from "../../db/schema";
 import { notFound, unauthorized, validationError } from "../../lib/http";
 import {
 	conflict,
@@ -40,8 +40,12 @@ const validateStudentFields = (body: Record<string, unknown>, partial: boolean) 
 			errors.push({ field, message: `${field}は1〜${max}文字で指定してください` });
 		}
 	}
-	if (!partial || body.courseId !== undefined) {
-		if (typeof body.courseId !== "number" || !Number.isSafeInteger(body.courseId) || body.courseId <= 0) errors.push({ field: "courseId", message: "courseIdが不正です" });
+	const courseIds = body.courseIds;
+	if (courseIds !== undefined && (!Array.isArray(courseIds) || courseIds.length === 0 || courseIds.some((id) => typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0))) {
+		errors.push({ field: "courseIds", message: "courseIdsは1件以上の正の整数配列で指定してください" });
+	}
+	if ((!partial && courseIds === undefined && body.courseId === undefined) || (body.courseId !== undefined && (typeof body.courseId !== "number" || !Number.isSafeInteger(body.courseId) || body.courseId <= 0))) {
+		errors.push({ field: "courseId", message: "courseIdが不正です" });
 	}
 	if (!partial || body.yearId !== undefined) {
 		if (typeof body.yearId !== "number" || !Number.isSafeInteger(body.yearId) || body.yearId <= 0) errors.push({ field: "yearId", message: "yearIdが不正です" });
@@ -61,8 +65,9 @@ const studentBodyValidator = validator("json", (value, c) => {
 	if (!body) return validationError(c, "生徒データを指定してください");
 	const errors = validateStudentFields(body, false);
 	if (errors.length > 0) return validationError(c, "生徒の入力値を確認してください", errors);
+	const normalizedCourseIds = Array.isArray(body.courseIds) ? [...new Set(body.courseIds as number[])] : [body.courseId as number];
 	return {
-		courseId: body.courseId as number,
+		courseIds: normalizedCourseIds,
 		yearId: body.yearId as number,
 		studentNumber: (body.studentNumber as string).trim(),
 		schoolGrade: (body.schoolGrade as string).trim(),
@@ -86,6 +91,7 @@ const studentPatchValidator = validator("json", (value, c) => {
 	if (errors.length > 0) return validationError(c, "生徒の入力値を確認してください", errors);
 	return {
 		...(body.courseId === undefined ? {} : { courseId: body.courseId as number }),
+		...(body.courseIds === undefined ? {} : { courseIds: [...new Set(body.courseIds as number[])] }),
 		...(body.yearId === undefined ? {} : { yearId: body.yearId as number }),
 		...(body.studentNumber === undefined ? {} : { studentNumber: (body.studentNumber as string).trim() }),
 		...(body.schoolGrade === undefined ? {} : { schoolGrade: (body.schoolGrade as string).trim() }),
@@ -105,8 +111,6 @@ const findStudent = async (id: number) => {
 	const [item] = await db
 		.select({
 			id: students.id,
-			courseId: students.courseId,
-			courseName: courses.name,
 			studentNumber: students.studentNumber,
 			schoolGrade: students.schoolGrade,
 			name: students.name,
@@ -121,10 +125,22 @@ const findStudent = async (id: number) => {
 			isAttending: students.isAttending,
 		})
 		.from(students)
-		.innerJoin(courses, eq(students.courseId, courses.id))
 		.where(eq(students.id, id))
 		.limit(1);
-	return item;
+	if (!item) return item;
+	const courseRows = await db
+		.select({ id: courses.id, name: courses.name })
+		.from(studentCourses)
+		.innerJoin(courses, eq(studentCourses.courseId, courses.id))
+		.where(eq(studentCourses.studentId, id))
+		.orderBy(asc(courses.name));
+	return {
+		...item,
+		courseId: courseRows[0]?.id ?? null,
+		courseIds: courseRows.map((course) => course.id),
+		courseNames: courseRows.map((course) => course.name),
+		courseName: courseRows.map((course) => course.name).join("、"),
+	};
 };
 
 const ensureCourse = async (courseId: number, yearId: number) => {
@@ -134,8 +150,13 @@ const ensureCourse = async (courseId: number, yearId: number) => {
 	return null;
 };
 
-const canTeacherSeeStudent = async (teacherId: string, student: { courseId: number; yearId: number }) => {
-	const [subject] = await db.select({ id: subjects.id }).from(subjects).where(and(eq(subjects.teacherId, teacherId), eq(subjects.courseId, student.courseId), eq(subjects.yearId, student.yearId))).limit(1);
+const canTeacherSeeStudent = async (teacherId: string, student: { id: number; yearId: number }) => {
+	const [subject] = await db
+		.select({ id: subjects.id })
+		.from(subjects)
+		.innerJoin(studentCourses, eq(studentCourses.courseId, subjects.courseId))
+		.where(and(eq(subjects.teacherId, teacherId), eq(studentCourses.studentId, student.id), eq(subjects.yearId, student.yearId)))
+		.limit(1);
 	return Boolean(subject);
 };
 
@@ -146,19 +167,25 @@ const app = new Hono()
 		const query = c.req.valid("query");
 		const yearId = query.yearId ?? actor.yearId;
 		const conditions = [eq(students.yearId, yearId)];
-		if (query.courseId) conditions.push(eq(students.courseId, query.courseId));
+		if (query.courseId) {
+			const enrolled = await db.select({ studentId: studentCourses.studentId }).from(studentCourses).where(eq(studentCourses.courseId, query.courseId));
+			const ids = enrolled.map((row) => row.studentId);
+			if (ids.length === 0) return c.json({ items: [], total: 0 });
+			conditions.push(inArray(students.id, ids));
+		}
 		if (query.search) conditions.push(or(like(students.name, `%${query.search}%`), like(students.studentNumber, `%${query.search}%`))!);
 		if (actor.role !== "staff") {
 			const teacherSubjects = await db.select({ courseId: subjects.courseId }).from(subjects).where(and(eq(subjects.teacherId, actor.id), eq(subjects.yearId, yearId)));
 			const courseIds = [...new Set(teacherSubjects.map((row) => row.courseId))];
 			if (courseIds.length === 0) return c.json({ items: [], total: 0 });
-			conditions.push(inArray(students.courseId, courseIds));
+			const enrolled = await db.select({ studentId: studentCourses.studentId }).from(studentCourses).where(inArray(studentCourses.courseId, courseIds));
+			const ids = enrolled.map((row) => row.studentId);
+			if (ids.length === 0) return c.json({ items: [], total: 0 });
+			conditions.push(inArray(students.id, ids));
 		}
 		const items = await db
 			.select({
 				id: students.id,
-				courseId: students.courseId,
-				courseName: courses.name,
 				studentNumber: students.studentNumber,
 				schoolGrade: students.schoolGrade,
 				name: students.name,
@@ -173,10 +200,17 @@ const app = new Hono()
 				isAttending: students.isAttending,
 			})
 			.from(students)
-			.innerJoin(courses, eq(students.courseId, courses.id))
+			.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+			.innerJoin(courses, eq(studentCourses.courseId, courses.id))
 			.where(and(...conditions))
 			.orderBy(asc(students.studentNumber));
-		return c.json({ items, total: items.length });
+		const enrollmentRows = items.length === 0
+			? []
+			: await db.select({ studentId: studentCourses.studentId, courseId: studentCourses.courseId }).from(studentCourses).where(inArray(studentCourses.studentId, items.map((item) => item.id)));
+		const courseIdsByStudent = new Map<number, number[]>();
+		for (const row of enrollmentRows) courseIdsByStudent.set(row.studentId, [...(courseIdsByStudent.get(row.studentId) ?? []), row.courseId]);
+		const uniqueItems = [...new Map(items.map((item) => [item.id, item])).values()];
+		return c.json({ items: uniqueItems.map((item) => ({ ...item, courseId: courseIdsByStudent.get(item.id)?.[0] ?? null, courseIds: courseIdsByStudent.get(item.id) ?? [] })), total: uniqueItems.length });
 	})
 	.get("/:id", async (c) => {
 		const actor = await requireActor(c);
@@ -192,13 +226,21 @@ const app = new Hono()
 		const actor = await requireStaffResponse(c);
 		if (actor instanceof Response) return actor;
 		const body = c.req.valid("json");
-		const relationError = await ensureCourse(body.courseId, body.yearId);
-		if (relationError) return notFound(c, relationError);
+		for (const courseId of body.courseIds) {
+			const relationError = await ensureCourse(courseId, body.yearId);
+			if (relationError) return notFound(c, relationError);
+		}
 		try {
-			const result = await db.insert(students).values(body);
-			return c.json({ item: await findStudent(Number(result[0].insertId)) }, 201);
+			const { courseIds, ...studentValues } = body;
+			const studentId = await db.transaction(async (tx) => {
+				const result = await tx.insert(students).values(studentValues);
+				const id = Number(result[0].insertId);
+				await tx.insert(studentCourses).values(courseIds.map((courseId) => ({ studentId: id, courseId })));
+				return id;
+			});
+			return c.json({ item: await findStudent(studentId), courseIds }, 201);
 		} catch (error) {
-			if (isDatabaseConstraintError(error)) return conflict(c, "同じ生徒番号は登録できません");
+			if (isDatabaseConstraintError(error)) return conflict(c, "同じ年度・学籍番号の生徒は登録できません");
 			throw error;
 		}
 	})
@@ -210,13 +252,28 @@ const app = new Hono()
 		const existing = await findStudent(id);
 		if (!existing) return notFound(c, "生徒");
 		const body = c.req.valid("json");
-		const relationError = await ensureCourse(body.courseId ?? existing.courseId, body.yearId ?? existing.yearId);
-		if (relationError) return notFound(c, relationError);
+		const requestedCourseIds = body.courseIds ?? (body.courseId === undefined ? undefined : [body.courseId]);
+		if (requestedCourseIds) {
+			for (const courseId of requestedCourseIds) {
+				const relationError = await ensureCourse(courseId, body.yearId ?? existing.yearId);
+				if (relationError) return notFound(c, relationError);
+			}
+		}
 		try {
-			await db.update(students).set(body).where(eq(students.id, id));
+			const { courseIds, courseId: _legacyCourseId, ...studentValues } = body;
+			await db.transaction(async (tx) => {
+				if (Object.keys(studentValues).length > 0) await tx.update(students).set(studentValues).where(eq(students.id, id));
+				if (courseIds) {
+					await tx.delete(studentCourses).where(eq(studentCourses.studentId, id));
+					await tx.insert(studentCourses).values(courseIds.map((courseId) => ({ studentId: id, courseId })));
+				} else if (body.courseId !== undefined) {
+					await tx.delete(studentCourses).where(eq(studentCourses.studentId, id));
+					await tx.insert(studentCourses).values({ studentId: id, courseId: body.courseId });
+				}
+			});
 			return c.json({ item: await findStudent(id) });
 		} catch (error) {
-			if (isDatabaseConstraintError(error)) return conflict(c, "同じ生徒番号は登録できません");
+			if (isDatabaseConstraintError(error)) return conflict(c, "同じ年度・学籍番号の生徒は登録できません");
 			throw error;
 		}
 	})

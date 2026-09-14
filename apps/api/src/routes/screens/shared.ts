@@ -4,6 +4,7 @@ import { validator } from "hono/validator";
 
 import { db } from "../../db";
 import { years } from "../../db/schema";
+import { academicYearFor } from "../../lib/academic-calendar";
 import { parsePositiveInt, parseScreenQuery, type ScreenQuery, validationError } from "../../lib/http";
 
 export const screenQueryValidator = validator("query", (value, c) => {
@@ -17,8 +18,10 @@ export const selectedYear = async (yearId?: number) => {
 		return year;
 	}
 
-	const [year] = await db.select().from(years).orderBy(desc(years.year)).limit(1);
-	return year;
+	const [current] = await db.select().from(years).where(eq(years.year, academicYearFor())).limit(1);
+	if (current) return current;
+	const [latest] = await db.select().from(years).orderBy(desc(years.year)).limit(1);
+	return latest;
 };
 
 export const isFirstTerm = (query: ScreenQuery): boolean => query.term === "first";

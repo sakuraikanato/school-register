@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { RoleGate } from "@/component/sidebar";
 
 function PasswordVisibilityIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -24,7 +25,7 @@ export default function TeacherPasswordChangePage() {
     setMessage("パスワードを変更しました。ログイン画面へ戻ります。");
   };
 
-  return (
+  return <RoleGate role="teacher">
     <main className="password-page teacher-password-page">
       <section className="password-change-form-area">
         <form className="password-change-card" onSubmit={changePassword}>
@@ -42,5 +43,5 @@ export default function TeacherPasswordChangePage() {
         <div className="password-change-rules"><h3>パスワードの条件</h3><ul><li><span aria-hidden="true">✓</span>8文字以上</li><li><span aria-hidden="true">✓</span>英数字を含む</li><li><span aria-hidden="true">✓</span>大文字を含む</li><li><span aria-hidden="true">✓</span>小文字を含む</li></ul></div>
       </section>
     </main>
-  );
+  </RoleGate>;
 }
