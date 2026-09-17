@@ -25,7 +25,7 @@ function Content() {
   const entry = useRpc(() => subjectId ? getTeacherGradeEntry(subjectId, query) : Promise.reject(new Error("担当科目がありません")), [subjectId, query.yearId, query.term]);
   if (entry.status === 404) return <NotFoundView />;
   const period = entry.data ? { yearId: query.yearId ?? entry.data.year.id, term: query.term ?? (entry.data.term.label === "前期" ? "first" : "second") } : null;
-  return <>{(dashboard.loading || entry.loading) && <RpcStateMessage loading error={null} />}{(dashboard.error || entry.error) && <RpcStateMessage loading={false} error={dashboard.error ?? entry.error} />}{entry.data && <><div className="teacher-grades-desktop">{isDeveloperMode && <DeveloperGradePeriodControls subjectId={subjectId} value={period!} />}<TeacherGradesScreen key={`${subjectId}-${period!.yearId}-${period!.term}`} data={entry.data} query={query} /></div><div className="teacher-grades-mobile"><TeacherMobileGradesScreen data={entry.data} /></div></>}</>;
+  return <>{(dashboard.loading || entry.loading) && <RpcStateMessage loading error={null} />}{(dashboard.error || entry.error) && <RpcStateMessage loading={false} error={dashboard.error ?? entry.error} />}{entry.data && <><div className={`teacher-grades-desktop${isDeveloperMode ? " developer-grade-mode" : ""}`}>{isDeveloperMode && <DeveloperGradePeriodControls subjectId={subjectId} value={period!} />}<TeacherGradesScreen key={`${subjectId}-${period!.yearId}-${period!.term}`} data={entry.data} query={query} /></div><div className="teacher-grades-mobile"><TeacherMobileGradesScreen data={entry.data} /></div></>}</>;
 }
 
 export default function Page() { return <Suspense fallback={<p className="rpc-state-message">読み込み中...</p>}><RoleGate role="teacher"><Content /></RoleGate></Suspense>; }

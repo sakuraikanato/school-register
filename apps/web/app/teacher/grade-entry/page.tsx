@@ -26,7 +26,7 @@ function Content() {
   const period = entry.data ? { yearId: query.yearId ?? entry.data.year.id, term: query.term ?? (entry.data.term.label === "前期" ? "first" : "second") } : null;
   const data = entry.data;
   if (entry.status === 404) return <NotFoundView />;
-  return <AppShell currentPage="courses" role="teacher"><RpcStateMessage loading={dashboard.loading || entry.loading} error={dashboard.error ?? entry.error} />{data && <><header className="page-header compact"><div><span className="eyebrow">担当科目 / {data.subject.name}</span><h1>成績入力</h1><p>保存はできますが、未入力項目がある場合は警告を表示します。</p></div><span className="role-chip">講師</span></header><div className="desktop-content">{isDeveloperMode && <DeveloperGradePeriodControls subjectId={subjectId} value={period!} />}<GradeEditor key={`${subjectId}-${period!.yearId}-${period!.term}`} data={data} subjectId={subjectId} query={query} /></div></>}</AppShell>;
+  return <AppShell currentPage="courses" role="teacher"><RpcStateMessage loading={dashboard.loading || entry.loading} error={dashboard.error ?? entry.error} />{data && <><header className="page-header compact"><div><span className="eyebrow">担当科目 / {data.subject.name}</span><h1>成績入力</h1><p>保存はできますが、未入力項目がある場合は警告を表示します。</p></div><span className="role-chip">講師</span></header><div className={`desktop-content${isDeveloperMode ? " developer-grade-mode" : ""}`}>{isDeveloperMode && <DeveloperGradePeriodControls subjectId={subjectId} value={period!} />}<GradeEditor key={`${subjectId}-${period!.yearId}-${period!.term}`} data={data} subjectId={subjectId} query={query} /></div></>}</AppShell>;
 }
 
 export default function Page() { return <Suspense fallback={<p className="rpc-state-message">読み込み中...</p>}><Content /></Suspense>; }

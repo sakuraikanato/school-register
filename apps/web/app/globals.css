@@ -676,6 +676,23 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
 .developer-grade-period-controls select { min-width:108px; height:34px; padding:0 8px; border:1px solid #91958e; border-radius:4px; color:#242624; background:#fff; font-size:14px; }
 .developer-grade-period-controls select:focus-visible { border-color:#001a9d; outline:2px solid rgba(0,26,157,.16); outline-offset:1px; }
 
+/* The developer period selector takes a little vertical space above the grade
+   table. Keep the editable controls compact in that mode so the action bar
+   remains reachable in the fixed desktop viewport. */
+.developer-grade-mode .staff-grade-table .grade-cell-input,
+.developer-grade-mode .teacher-grades-table .grade-cell-input {
+  width:min(100%, 58px);
+  height:32px;
+  padding:0 4px;
+  font-size:14px;
+}
+.developer-grade-mode .editor-table input {
+  width:58px;
+  height:28px;
+  padding:0 4px;
+  font-size:14px;
+}
+
 .weight-modal-content { width:calc(100% - 44px); margin:28px auto 18px; }
 .weight-modal-content h2 { margin:0; font-size:22px; font-weight:500; line-height:1.3; }
 .weight-modal-content > p { margin:6px 0 18px; font-size:16px; line-height:1.3; }
