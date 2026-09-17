@@ -173,7 +173,7 @@ const app = new Hono()
 			if (ids.length === 0) return c.json({ items: [], total: 0 });
 			conditions.push(inArray(students.id, ids));
 		}
-		if (query.search) conditions.push(or(like(students.name, `%${query.search}%`), like(students.studentNumber, `%${query.search}%`))!);
+		if (query.search) conditions.push(or(like(students.name, `%${query.search}%`), like(students.nameHiragana, `%${query.search}%`), like(students.studentNumber, `%${query.search}%`))!);
 		if (actor.role !== "staff") {
 			const teacherSubjects = await db.select({ courseId: subjects.courseId }).from(subjects).where(and(eq(subjects.teacherId, actor.id), eq(subjects.yearId, yearId)));
 			const courseIds = [...new Set(teacherSubjects.map((row) => row.courseId))];

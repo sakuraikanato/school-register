@@ -123,7 +123,7 @@ const app = new Hono()
 		if (query.courseId) conditions.push(eq(studentCourses.courseId, query.courseId));
 		if (query.search) {
 			const pattern = `%${query.search}%`;
-			conditions.push(or(like(students.name, pattern), like(students.studentNumber, pattern))!);
+			conditions.push(or(like(students.name, pattern), like(students.nameHiragana, pattern), like(students.studentNumber, pattern))!);
 		}
 
 		const studentRows = await db
