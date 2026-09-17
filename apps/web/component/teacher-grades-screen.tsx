@@ -20,7 +20,7 @@ export function TeacherGradesScreen({ data, query = {} }: Readonly<{ data: Teach
   const [draftRows, setDraftRows] = useState<EditableGradeDraft[]>(() => editableGradeRows(data));
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify({ rows: editableGradeRows(data), weights: [data.weight?.attendanceWeight ?? 0, data.weight?.attitudeWeight ?? 0, data.weight?.assignmentWeight ?? 0] }));
-  const rows = useMemo(() => draftRows.filter((row) => `${row.number}${row.name}`.includes(search)), [draftRows, search]);
+  const rows = useMemo(() => draftRows.filter((row) => `${row.number}${row.name}${row.nameHiragana ?? ""}`.includes(search)), [draftRows, search]);
   const missingCount = draftRows.filter((row) => row.status === "在籍" && (row.attendance == null || row.attitude == null || row.assignment == null)).length;
   const isDirty = JSON.stringify({ rows: draftRows, weights }) !== savedSnapshot;
   useUnsavedChanges(isDirty);

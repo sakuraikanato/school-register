@@ -14,6 +14,7 @@ export type EditableGradeDraft = {
   id: number;
   number: string;
   name: string;
+  nameHiragana?: string;
   status: "在籍" | "休学";
   editable: boolean;
   attendance: number | null;
@@ -27,6 +28,7 @@ export const editableGradeRows = (data: TeacherGradeEntryResponse): EditableGrad
   id: student.id,
   number: student.studentNumber,
   name: student.name,
+  nameHiragana: student.nameHiragana,
   status: student.isAttending ? "在籍" : "休学",
   editable,
   attendance: grade?.attendance ?? null,

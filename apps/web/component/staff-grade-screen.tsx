@@ -21,7 +21,7 @@ export function StaffGradeScreen({ data, subjectId, query = {} }: Readonly<{ dat
   const [draftRows, setDraftRows] = useState<EditableGradeDraft[]>(() => editableGradeRows(data));
   const [search, setSearch] = useState("");
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify({ rows: editableGradeRows(data), weights: initialWeights }));
-  const rows = draftRows.filter((row) => `${row.number}${row.name}`.includes(search));
+  const rows = draftRows.filter((row) => `${row.number}${row.name}${row.nameHiragana ?? ""}`.includes(search));
   const missingCount = draftRows.filter((row) => row.status === "在籍" && (row.attendance == null || row.attitude == null || row.assignment == null)).length;
   const isDirty = JSON.stringify({ rows: draftRows, weights }) !== savedSnapshot;
   useUnsavedChanges(isDirty);
