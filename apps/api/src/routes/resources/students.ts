@@ -200,8 +200,8 @@ const app = new Hono()
 				isAttending: students.isAttending,
 			})
 			.from(students)
-			.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
-			.innerJoin(courses, eq(studentCourses.courseId, courses.id))
+			.leftJoin(studentCourses, eq(studentCourses.studentId, students.id))
+			.leftJoin(courses, eq(studentCourses.courseId, courses.id))
 			.where(and(...conditions))
 			.orderBy(asc(students.studentNumber));
 		const enrollmentRows = items.length === 0

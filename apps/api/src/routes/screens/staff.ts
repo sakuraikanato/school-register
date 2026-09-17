@@ -138,8 +138,8 @@ const app = new Hono()
 				courseName: courses.name,
 			})
 			.from(students)
-			.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
-			.innerJoin(courses, eq(studentCourses.courseId, courses.id))
+			.leftJoin(studentCourses, eq(studentCourses.studentId, students.id))
+			.leftJoin(courses, eq(studentCourses.courseId, courses.id))
 			.where(and(...conditions))
 			.orderBy(asc(students.studentNumber));
 
@@ -221,8 +221,8 @@ const app = new Hono()
 				courseName: courses.name,
 			})
 			.from(students)
-			.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
-			.innerJoin(courses, eq(studentCourses.courseId, courses.id))
+			.leftJoin(studentCourses, eq(studentCourses.studentId, students.id))
+			.leftJoin(courses, eq(studentCourses.courseId, courses.id))
 			.where(and(query.studentNumber ? eq(students.studentNumber, query.studentNumber) : eq(students.id, studentId!), eq(students.yearId, year.id)))
 		.limit(1);
 		if (!student) return notFound(c, "生徒");
