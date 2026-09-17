@@ -227,6 +227,8 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
   .staff-grade-breadcrumb a:hover,
   .staff-gradebook-breadcrumb a:hover,
   .teacher-grades-breadcrumb a:hover { color:#001a9d; text-decoration:underline; }
+  .staff-student-toolbar { min-height:58px; padding:0 20px 0 8px; display:flex; align-items:center; justify-content:space-between; gap:24px; }
+  .staff-student-toolbar .staff-breadcrumb { min-height:43px; padding:9px 0 0; }
   .staff-students-content { position:relative; padding:0 20px 50px 98px; }
   .staff-search,
   .staff-grade-search {
@@ -239,7 +241,7 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
     border-radius:25px;
     background:#fff;
   }
-  .staff-students-content > .staff-search { position:absolute; top:-43px; right:20px; width:270px; }
+  .staff-student-toolbar > .staff-search { width:270px; flex:0 0 270px; }
   .staff-search > span,
   .staff-grade-search > span { width:18px; height:18px; flex:0 0 18px; border:1.7px solid #363835; border-radius:50%; position:relative; }
   .staff-search > span::after,
@@ -827,7 +829,8 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
 @media (max-width:800px) {
   .staff-shell .mobile-brand,
   .staff-shell .staff-page-title,
-  .staff-shell .staff-breadcrumb { display:none; }
+  .staff-shell .staff-breadcrumb,
+  .staff-shell .staff-student-toolbar { display:none; }
   .staff-shell .app-main { padding:0; }
   .staff-shell .mobile-only { display:block; }
 
