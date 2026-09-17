@@ -88,6 +88,37 @@ const hasConfirmedGrades = async (subjectId: number, yearId: number, firstTerm: 
 	return Boolean(confirmed);
 };
 
+const studentsForSubject = async (subjectCourseId: number, yearId: number) => {
+	const [anyEnrollment] = await db.select({ studentId: studentCourses.studentId }).from(studentCourses).limit(1);
+	if (!anyEnrollment) {
+		return db
+			.select({
+				id: students.id,
+				studentNumber: students.studentNumber,
+				name: students.name,
+				nameHiragana: students.nameHiragana,
+				schoolGrade: students.schoolGrade,
+				isAttending: students.isAttending,
+			})
+			.from(students)
+			.where(eq(students.yearId, yearId))
+			.orderBy(asc(students.studentNumber));
+	}
+	return db
+		.select({
+			id: students.id,
+			studentNumber: students.studentNumber,
+			name: students.name,
+			nameHiragana: students.nameHiragana,
+			schoolGrade: students.schoolGrade,
+			isAttending: students.isAttending,
+		})
+		.from(students)
+		.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+		.where(and(eq(studentCourses.courseId, subjectCourseId), eq(students.yearId, yearId)))
+		.orderBy(asc(students.studentNumber));
+};
+
 const app = new Hono()
 	.get("/grade-entry/:subjectId", screenQueryValidator, async (c) => {
 		const actor = await getCurrentActor(c);
@@ -109,19 +140,7 @@ const app = new Hono()
 				.from(weights)
 				.where(and(eq(weights.teacherId, subject.teacherId), eq(weights.subjectId, subject.id), eq(weights.yearId, year.id), eq(weights.isFirstTerm, firstTerm)))
 				.limit(1),
-			db
-				.select({
-					id: students.id,
-					studentNumber: students.studentNumber,
-					name: students.name,
-					nameHiragana: students.nameHiragana,
-					schoolGrade: students.schoolGrade,
-					isAttending: students.isAttending,
-				})
-				.from(students)
-				.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
-				.where(and(eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id)))
-				.orderBy(asc(students.studentNumber)),
+			studentsForSubject(subject.courseId, year.id),
 			db
 				.select()
 				.from(grades)
@@ -244,18 +263,21 @@ const app = new Hono()
 
 		const body = c.req.valid("json") as SaveGradesBody;
 		const studentIds = body.grades.map((grade) => grade.studentId);
-		const [enrolledRows, existingRows] = await Promise.all([
-			db
-				.select({ id: students.id })
-				.from(students)
-				.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
-				.where(and(inArray(students.id, studentIds), eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id))),
+		const [anyEnrollment, existingRows] = await Promise.all([
+			db.select({ studentId: studentCourses.studentId }).from(studentCourses).limit(1),
 			db
 				.select({ studentId: grades.studentId, isConfirmed: grades.isConfirmed })
 				.from(grades)
 				.where(and(inArray(grades.studentId, studentIds), eq(grades.subjectId, subject.id), eq(grades.yearId, year.id), eq(grades.isFirstTerm, firstTerm))),
 		]);
 
+		const enrolledRows = anyEnrollment.length === 0
+			? await db.select({ id: students.id }).from(students).where(and(inArray(students.id, studentIds), eq(students.yearId, year.id)))
+			: await db
+					.select({ id: students.id })
+					.from(students)
+					.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+					.where(and(inArray(students.id, studentIds), eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id)));
 		if (enrolledRows.length !== studentIds.length) {
 			return validationError(c, "この教科に属しない生徒が含まれています");
 		}
