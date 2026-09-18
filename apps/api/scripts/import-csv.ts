@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 
 import { connection, db } from "../src/db";
-import { account, courses, students, subjects, user, userYears, years } from "../src/db/schema";
+import { account, courses, studentCourses, students, subjects, user, userYears, years } from "../src/db/schema";
 import { nextStudentSchoolGrade } from "../src/lib/csv-import";
 
 type StaffRow = { name: string; nameHiragana: string; age: number; gender: "男" | "女" | "その他"; email: string };
@@ -179,10 +179,17 @@ try {
       if (!courseId) throw new Error(`生徒「${row.studentNumber}」の専攻「${row.courseName}」がありません`);
       const existingRows = await tx.select({ id: students.id, schoolGrade: students.schoolGrade, yearId: students.yearId }).from(students).where(eq(students.studentNumber, row.studentNumber));
       const existing = existingRows.find((item) => item.yearId === year.id);
-      const values = { courseId, studentNumber: row.studentNumber, schoolGrade: String(row.age), name: row.name, nameHiragana: row.nameHiragana, birthDate: row.birthDate, gender: row.gender, email: row.email, tel: row.tel, postCode: row.postCode, address: row.address, yearId: year.id, isAttending: true };
-      if (existing) { await tx.update(students).set({ ...values, schoolGrade: existing.schoolGrade }).where(eq(students.id, existing.id)); counts.studentsUpdated += 1; }
+      const values = { studentNumber: row.studentNumber, schoolGrade: String(row.age), name: row.name, nameHiragana: row.nameHiragana, birthDate: row.birthDate, gender: row.gender, email: row.email, tel: row.tel, postCode: row.postCode, address: row.address, yearId: year.id, isAttending: true };
+      if (existing) {
+        await tx.update(students).set({ ...values, schoolGrade: existing.schoolGrade }).where(eq(students.id, existing.id));
+        await tx.delete(studentCourses).where(eq(studentCourses.studentId, existing.id));
+        await tx.insert(studentCourses).values({ studentId: existing.id, courseId });
+        counts.studentsUpdated += 1;
+      }
       else {
-        await tx.insert(students).values({ ...values, schoolGrade: nextStudentSchoolGrade(existingRows.map((item) => item.schoolGrade), values.schoolGrade) });
+        const inserted = await tx.insert(students).values({ ...values, schoolGrade: nextStudentSchoolGrade(existingRows.map((item) => item.schoolGrade), values.schoolGrade) });
+        const studentId = Number(inserted[0].insertId);
+        await tx.insert(studentCourses).values({ studentId, courseId });
         counts.studentsCreated += 1;
       }
     }

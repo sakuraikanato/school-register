@@ -104,13 +104,13 @@ const studentsForSubject = async (subjectCourseId: number, courseName: string, y
 			.where(eq(students.yearId, yearId))
 			.orderBy(asc(students.studentNumber));
 	}
-	const [anyEnrollment] = await db
+	const [courseEnrollment] = await db
 		.select({ studentId: studentCourses.studentId })
 		.from(studentCourses)
 		.innerJoin(students, eq(studentCourses.studentId, students.id))
-		.where(eq(students.yearId, yearId))
+		.where(and(eq(studentCourses.courseId, subjectCourseId), eq(students.yearId, yearId)))
 		.limit(1);
-	if (!anyEnrollment) {
+	if (!courseEnrollment) {
 		return db
 			.select({
 				id: students.id,
@@ -283,12 +283,12 @@ const app = new Hono()
 
 		const body = c.req.valid("json") as SaveGradesBody;
 		const studentIds = body.grades.map((grade) => grade.studentId);
-		const [anyEnrollment, existingRows] = await Promise.all([
+		const [courseEnrollment, existingRows] = await Promise.all([
 			db
 				.select({ studentId: studentCourses.studentId })
 				.from(studentCourses)
 				.innerJoin(students, eq(studentCourses.studentId, students.id))
-				.where(eq(students.yearId, year.id))
+				.where(and(eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id)))
 				.limit(1),
 			db
 				.select({ studentId: grades.studentId, isConfirmed: grades.isConfirmed })
@@ -298,7 +298,7 @@ const app = new Hono()
 
 		const enrolledRows = isCommonCourseName(subject.courseName)
 			? await db.select({ id: students.id }).from(students).where(and(inArray(students.id, studentIds), eq(students.yearId, year.id)))
-			: anyEnrollment.length === 0
+			: courseEnrollment.length === 0
 			? await db.select({ id: students.id }).from(students).where(and(inArray(students.id, studentIds), eq(students.yearId, year.id)))
 			: await db
 					.select({ id: students.id })
