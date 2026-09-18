@@ -992,6 +992,32 @@ body { height:100%; min-height:0; overflow:hidden; overscroll-behavior:none; }
 .teacher-grades-page { height:100dvh; min-height:0; overflow:hidden; }
 .teacher-grades-table-shell { overflow:auto; }
 
+/* Keep the developer-only period switcher inside the viewport so the grade
+   actions remain reachable, including the staff confirmation button. */
+@media (min-width:801px) {
+  .staff-grade-desktop.developer-grade-mode,
+  .teacher-grades-desktop.developer-grade-mode {
+    height:100%;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+
+  .developer-grade-mode .developer-grade-period-controls {
+    flex:0 0 auto;
+    margin-bottom:8px;
+  }
+
+  .staff-grade-desktop.developer-grade-mode > .staff-grade-page,
+  .teacher-grades-desktop.developer-grade-mode > .teacher-grades-page {
+    height:auto;
+    min-height:0;
+    flex:1 1 auto;
+    overflow:hidden;
+  }
+}
+
 .sheet-topline > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sheet-history-select { position:relative; display:inline-flex; align-items:center; flex:0 0 auto; }
 .sheet-history-select select { max-width:150px; padding:0 15px 0 4px; border:0; appearance:none; background:transparent; color:inherit; font:inherit; text-align:right; cursor:pointer; }
