@@ -381,7 +381,7 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
   .staff-gradebook-table th:nth-child(4), .staff-gradebook-table td:nth-child(4) { width:12.4%; }
   .staff-gradebook-table th:nth-child(5), .staff-gradebook-table td:nth-child(5) { width:13.2%; }
   .staff-gradebook-table th:nth-child(6), .staff-gradebook-table td:nth-child(6) { width:14.6%; }
-  .staff-gradebook-table tbody tr:last-child td { border-bottom:0; }
+  .staff-gradebook-table tbody tr:last-child td { border-bottom:1px solid #30312f; }
 }
 
 @media (max-width:800px) {
