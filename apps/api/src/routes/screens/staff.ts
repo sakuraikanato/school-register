@@ -16,6 +16,13 @@ type CsvResource = CsvImportResource;
 type CsvPreviewBody = { resource: CsvResource; csvText: string };
 type CsvImportBody = CsvPreviewBody & { year: number };
 
+const gradeFieldLabels = {
+	attendance: "出席率",
+	attitude: "授業態度",
+	assignment: "課題",
+} as const;
+type GradeField = keyof typeof gradeFieldLabels;
+
 const csvTemplates: Record<CsvResource, { label: string; columns: string[] }> = {
 	teachers: { label: "講師", columns: ["name", "nameHiragana", "age", "gender", "email", "initialPassword"] },
 	staff: { label: "専任職員", columns: ["name", "nameHiragana", "age", "gender", "email", "initialPassword"] },
@@ -381,18 +388,29 @@ const app = new Hono()
 		const [studentRows, gradeRows] = await Promise.all([
 			studentRowsQuery,
 				db
-					.select({ studentId: grades.studentId, isConfirmed: grades.isConfirmed })
+					.select({
+						studentId: grades.studentId,
+						isConfirmed: grades.isConfirmed,
+						attendance: grades.attendance,
+						attitude: grades.attitude,
+						assignment: grades.assignment,
+					})
 				.from(grades)
 				.where(and(eq(grades.subjectId, subject.id), eq(grades.yearId, year.id), eq(grades.isFirstTerm, firstTerm))),
 		]);
-		const enteredStudents = new Set(gradeRows.map((grade) => grade.studentId));
-		const missingRows = studentRows
-			.filter((student) => !enteredStudents.has(student.id))
-			.map((student) => ({ student, missingFields: ["attendance", "attitude", "assignment"] }));
+		const gradeByStudent = new Map(gradeRows.map((grade) => [grade.studentId, grade]));
+		const missingRows = studentRows.flatMap((student) => {
+			const grade = gradeByStudent.get(student.id);
+			const missingFields = (Object.keys(gradeFieldLabels) as GradeField[]).filter((field) => grade?.[field] == null);
+			return missingFields.length > 0 ? [{ student, missingFields }] : [];
+		});
 		if (missingRows.length > 0) {
+			const missingSummary = missingRows
+				.map(({ student, missingFields }) => `${student.name}：${missingFields.map((field) => gradeFieldLabels[field]).join("、")}`)
+				.join("、");
 			return c.json(
 				{
-					error: { code: "GRADE_INCOMPLETE", message: "未入力の成績があるため確定できません", missingRows },
+					error: { code: "GRADE_INCOMPLETE", message: `未入力のため確定できません。${missingSummary}`, missingRows },
 				},
 				422,
 			);

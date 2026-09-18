@@ -22,6 +22,27 @@ export type EditableGradeDraft = {
   assignment: number | null;
 };
 
+const editableGradeFieldLabels = [
+	["attendance", "出席率"],
+	["attitude", "授業態度"],
+	["assignment", "課題"],
+] as const;
+
+export const missingEditableGradeFields = (row: Pick<EditableGradeDraft, "attendance" | "attitude" | "assignment">) =>
+	editableGradeFieldLabels.filter(([field]) => row[field] == null).map(([, label]) => label);
+
+export const formatMissingEditableGrades = (rows: readonly EditableGradeDraft[]) => {
+	const details = rows
+		.filter((row) => row.status === "在籍" && row.editable)
+		.map((row) => {
+			const fields = missingEditableGradeFields(row);
+			return fields.length > 0 ? `${row.name}：${fields.join("、")}` : null;
+		})
+		.filter((detail): detail is string => detail !== null);
+
+	return details.length > 0 ? `未入力のため確定できません。\n${details.map((detail) => `・${detail}`).join("\n")}` : "";
+};
+
 type GradeEditorRow = EditableGradeDraft;
 
 export const editableGradeRows = (data: TeacherGradeEntryResponse): EditableGradeDraft[] => data.students.map(({ student, grade, editable }) => ({
