@@ -40,7 +40,7 @@ export const formatMissingEditableGrades = (rows: readonly EditableGradeDraft[])
 		})
 		.filter((detail): detail is string => detail !== null);
 
-	return details.length > 0 ? `未入力のため確定できません。\n${details.map((detail) => `・${detail}`).join("\n")}` : "";
+	return details.length > 0 ? `未入力のため確定できません。\n・${details[0]}` : "";
 };
 
 type GradeEditorRow = EditableGradeDraft;
