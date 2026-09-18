@@ -58,7 +58,7 @@ export function StaffGradeScreen({ data, subjectId, query = {} }: Readonly<{ dat
   const save = async () => {
     const result = await persistGrades();
     if (!result) return;
-    showMessage(result.missing > 0 ? `${result.savedCount}名分を保存しました。\n${formatMissingEditableGrades(draftRows)}` : "成績を保存しました。入力値から点数と評価を算出しました。", result.missing > 0);
+    showMessage(result.missing > 0 ? `下書きを保存しました。${result.savedCount}名分のうち${result.missing}名分は未入力です。` : "成績を保存しました。入力値から点数と評価を算出しました。");
   };
   const confirm = async () => {
     const result = await persistGrades();

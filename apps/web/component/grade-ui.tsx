@@ -117,7 +117,7 @@ export function GradeEditor({ data, subjectId, query = {}, staff = false }: Read
     try {
       await saveTeacherGrades(subjectId, query, activeRows.map((row) => ({ studentId: row.id, attendance: row.attendance, attitude: row.attitude, assignment: row.assignment })));
       const missing = activeRows.length - complete.length;
-      setMessage(missing > 0 ? `${activeRows.length}名分を保存しました。未入力の${missing}名分は確定できません。` : staff ? "成績を保存しました。確定は成績確定画面から行ってください。" : "成績を保存しました。");
+      setMessage(missing > 0 ? `下書きを保存しました。${activeRows.length}名分のうち${missing}名分は未入力です。` : staff ? "成績を保存しました。確定は成績確定画面から行ってください。" : "成績を保存しました。");
       setSavedSnapshot(JSON.stringify({ rows, weights }));
     } catch (error) { setMessage(error instanceof Error ? error.message : "保存に失敗しました"); }
   };
