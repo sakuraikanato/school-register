@@ -783,7 +783,7 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
 .staff-grade-message.is-error { color:var(--red); }
 .staff-gradebook-history-select { position:relative; display:inline-flex; align-items:center; margin:10px 0 0 auto; }
 .staff-gradebook-history-select select { min-width:150px; height:34px; padding:0 26px 0 10px; border:1px solid #91958e; border-radius:5px; appearance:none; -webkit-appearance:none; color:#242624; background:#fff; font-size:14px; cursor:pointer; }
-.staff-gradebook-history-select span { position:absolute; right:9px; pointer-events:none; }
+.staff-gradebook-history-select .history-select-arrow { position:absolute; top:50%; right:11px; width:7px; height:7px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:translateY(-65%) rotate(45deg); pointer-events:none; }
 
 @media (max-width:800px) {
   .modal-backdrop { padding:12px; }
@@ -1024,7 +1024,7 @@ body { height:100%; min-height:0; overflow:hidden; overscroll-behavior:none; }
 .sheet-history-select { position:relative; display:inline-flex; align-items:center; flex:0 0 auto; }
 .sheet-history-select select { max-width:150px; padding:0 15px 0 4px; border:0; appearance:none; background:transparent; color:inherit; font:inherit; text-align:right; cursor:pointer; }
 .sheet-history-select select:focus-visible { outline:2px solid #001a9d; outline-offset:2px; }
-.sheet-history-select span { position:absolute; right:0; pointer-events:none; font-size:15px; line-height:1; }
+.sheet-history-select .history-select-arrow { position:absolute; top:50%; right:2px; width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:translateY(-65%) rotate(45deg); pointer-events:none; }
 
 @media print {
   @page { size:A4 portrait; margin:0; }

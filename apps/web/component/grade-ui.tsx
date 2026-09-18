@@ -84,7 +84,7 @@ type MobileSubject = { subjectName: string; attendance: number | null; attitude:
 export type GradeHistoryOption = Readonly<{ value: string; label: string }>;
 
 export function GradeHistorySelect({ options, value, onChange, className }: Readonly<{ options: readonly GradeHistoryOption[]; value: string; onChange: (value: string) => void; className: string }>) {
-  return <label className={className}><select aria-label="履歴を変更" value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select><span aria-hidden="true">⌄</span></label>;
+  return <label className={className}><select aria-label="履歴を変更" value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select><span className="history-select-arrow" aria-hidden="true" /></label>;
 }
 
 export function MobileGradeSheet({ title, student, subjects, yearLabel, termLabel, historyOptions = [], historyValue = "", onHistoryChange }: Readonly<{ title: string; student: StaffGradeSheetResponse["student"]; subjects: readonly MobileSubject[]; yearLabel: string; termLabel: string; historyOptions?: readonly GradeHistoryOption[]; historyValue?: string; onHistoryChange?: (value: string) => void }>) {
