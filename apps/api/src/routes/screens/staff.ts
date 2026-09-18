@@ -162,7 +162,7 @@ const app = new Hono()
 		const gradeByStudent = new Map<number, { scores: number[]; confirmed: number }>();
 		for (const grade of gradeRows) {
 			const summary = gradeByStudent.get(grade.studentId) ?? { scores: [], confirmed: 0 };
-			summary.scores.push(grade.score);
+			if (grade.score !== null) summary.scores.push(grade.score);
 			if (grade.isConfirmed) summary.confirmed += 1;
 			gradeByStudent.set(grade.studentId, summary);
 		}
@@ -264,7 +264,9 @@ const app = new Hono()
 				value: firstTerm ? "first" : "second",
 				label: termLabel(firstTerm),
 				subjects: rows.map((grade) => ({ ...grade, gradeLabel: gradeLabelFromScore(grade.score) })),
-				averageScore: rows.length === 0 ? null : Math.round(rows.reduce((total, grade) => total + grade.score, 0) / rows.length),
+				averageScore: rows.filter((grade) => grade.score !== null).length === 0
+					? null
+					: Math.round(rows.reduce((total, grade) => total + (grade.score ?? 0), 0) / rows.filter((grade) => grade.score !== null).length),
 			};
 		});
 
@@ -277,7 +279,9 @@ const app = new Hono()
 			overall: {
 				enteredSubjectCount: gradeRows.length,
 				confirmedSubjectCount: gradeRows.filter((grade) => grade.isConfirmed).length,
-				averageScore: gradeRows.length === 0 ? null : Math.round(gradeRows.reduce((total, grade) => total + grade.score, 0) / gradeRows.length),
+				averageScore: gradeRows.filter((grade) => grade.score !== null).length === 0
+					? null
+					: Math.round(gradeRows.reduce((total, grade) => total + (grade.score ?? 0), 0) / gradeRows.filter((grade) => grade.score !== null).length),
 			},
 			print: {
 				documentTitle: `${year.year}年度 成績表`,

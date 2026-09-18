@@ -6,6 +6,13 @@ export type GradeValues = {
 	assignment: number;
 };
 
+/** A draft may be saved before every input has been entered. */
+export type GradeDraftValues = {
+	attendance: number | null;
+	attitude: number | null;
+	assignment: number | null;
+};
+
 export type WeightValues = {
 	attendanceWeight: number;
 	attitudeWeight: number;
@@ -23,7 +30,8 @@ const isInteger = (value: unknown): value is number =>
 const inRange = (value: unknown, min: number, max: number): value is number =>
 	isInteger(value) && value >= min && value <= max;
 
-export const gradeLabelFromScore = (score: number): GradeLabel => {
+export const gradeLabelFromScore = (score: number | null): GradeLabel | null => {
+	if (score == null) return null;
 	if (score >= 90) return "秀";
 	if (score >= 80) return "優";
 	if (score >= 70) return "良";
@@ -80,6 +88,37 @@ export const validateGradeValues = (value: unknown):
 		? { success: false, errors }
 		: { success: true, data: input as GradeValues };
 };
+
+export const validateGradeDraftValues = (value: unknown):
+	| { success: true; data: GradeDraftValues }
+	| { success: false; errors: FieldError[] } => {
+	const input = value as Partial<GradeDraftValues> | null;
+	const errors: FieldError[] = [];
+	const fields = [
+		["attendance", 0, 100, "出席率は0〜100の整数で入力してください"],
+		["attitude", 1, 10, "授業態度は1〜10の整数で入力してください"],
+		["assignment", 1, 10, "課題は1〜10の整数で入力してください"],
+	] as const;
+
+	for (const [field, min, max, message] of fields) {
+		const fieldValue = input?.[field];
+		if (fieldValue !== null && !inRange(fieldValue, min, max)) errors.push({ field, message });
+	}
+
+	return errors.length > 0
+		? { success: false, errors }
+		: {
+				success: true,
+				data: {
+					attendance: input?.attendance ?? null,
+					attitude: input?.attitude ?? null,
+					assignment: input?.assignment ?? null,
+				},
+			};
+};
+
+export const isCompleteGrade = (grade: GradeDraftValues): grade is GradeValues =>
+	grade.attendance !== null && grade.attitude !== null && grade.assignment !== null;
 
 export const calculateScore = (grade: GradeValues, weight: WeightValues): number => {
 	const raw =

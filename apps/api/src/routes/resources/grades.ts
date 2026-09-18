@@ -4,7 +4,7 @@ import { validator } from "hono/validator";
 
 import { db } from "../../db";
 import { grades, studentCourses, students, subjects, user, weights } from "../../db/schema";
-import { calculateScore, validateGradeValues, type GradeValues } from "../../lib/grade";
+import { calculateScore, isCompleteGrade, validateGradeDraftValues, type GradeDraftValues } from "../../lib/grade";
 import { forbidden, notFound, unauthorized, validationError } from "../../lib/http";
 import {
 	conflict,
@@ -14,7 +14,7 @@ import {
 	resourceQueryValidator,
 } from "../../lib/resource";
 
-type GradeBody = GradeValues & { studentId: number; subjectId: number; yearId: number; isFirstTerm: boolean };
+type GradeBody = GradeDraftValues & { studentId: number; subjectId: number; yearId: number; isFirstTerm: boolean };
 
 const gradeBodyValidator = validator("json", (value, c) => {
 	const body = parseBodyRecord(value, c);
@@ -24,7 +24,7 @@ const gradeBodyValidator = validator("json", (value, c) => {
 		if (typeof body[field] !== "number" || !Number.isSafeInteger(body[field]) || body[field] <= 0) errors.push({ field, message: `${field}は正の整数で指定してください` });
 	}
 	if (typeof body.isFirstTerm !== "boolean") errors.push({ field: "isFirstTerm", message: "isFirstTermは真偽値で指定してください" });
-	const values = validateGradeValues(body);
+	const values = validateGradeDraftValues(body);
 	if (!values.success) errors.push(...values.errors);
 	if (errors.length > 0) return validationError(c, "成績の入力値を確認してください", errors);
 	return {
@@ -47,7 +47,7 @@ const gradePatchValidator = validator("json", (value, c) => {
 	if (body.isFirstTerm !== undefined && typeof body.isFirstTerm !== "boolean") errors.push({ field: "isFirstTerm", message: "isFirstTermは真偽値で指定してください" });
 	const gradeFields = ["attendance", "attitude", "assignment"] as const;
 	if (gradeFields.some((field) => body[field] !== undefined)) {
-		const values = validateGradeValues({
+		const values = validateGradeDraftValues({
 			attendance: body.attendance,
 			attitude: body.attitude,
 			assignment: body.assignment,
@@ -56,7 +56,7 @@ const gradePatchValidator = validator("json", (value, c) => {
 		// the complete merged value after the existing row has been loaded.
 		for (const field of gradeFields) {
 			if (body[field] === undefined) continue;
-			if (typeof body[field] !== "number" || !Number.isInteger(body[field])) errors.push({ field, message: "成績は整数で指定してください" });
+			if (body[field] !== null && (typeof body[field] !== "number" || !Number.isInteger(body[field]))) errors.push({ field, message: "成績は整数または未入力で指定してください" });
 		}
 		void values;
 	}
@@ -201,7 +201,7 @@ const app = new Hono()
 				attendance: body.attendance,
 				attitude: body.attitude,
 				assignment: body.assignment,
-				score: calculateScore(body, weight),
+				score: isCompleteGrade(body) ? calculateScore(body, weight) : null,
 			});
 			return c.json({ item: await findGrade(Number(result[0].insertId)) }, 201);
 		} catch (error) {
@@ -224,11 +224,11 @@ const app = new Hono()
 			subjectId: body.subjectId ?? existing.subjectId,
 			yearId: body.yearId ?? existing.yearId,
 			isFirstTerm: body.isFirstTerm ?? existing.isFirstTerm,
-			attendance: body.attendance ?? existing.attendance,
-			attitude: body.attitude ?? existing.attitude,
-			assignment: body.assignment ?? existing.assignment,
+			attendance: body.attendance !== undefined ? body.attendance : existing.attendance,
+			attitude: body.attitude !== undefined ? body.attitude : existing.attitude,
+			assignment: body.assignment !== undefined ? body.assignment : existing.assignment,
 		};
-		const validValues = validateGradeValues(merged);
+		const validValues = validateGradeDraftValues(merged);
 		if (!validValues.success) return validationError(c, "成績の入力値を確認してください", validValues.errors);
 		const relation = await ensureGradeRelations(merged.studentId, merged.subjectId, merged.yearId);
 		if (!relation.ok) return notFound(c, relation.error);
@@ -239,7 +239,7 @@ const app = new Hono()
 		const weight = await weightFor(relation.subject.teacherId, merged.subjectId, merged.yearId, merged.isFirstTerm);
 		if (!weight) return c.json({ error: { code: "WEIGHT_NOT_CONFIGURED", message: "先に評価基準を登録してください" } }, 422);
 		try {
-			await db.update(grades).set({ ...merged, score: calculateScore(validValues.data, weight) }).where(eq(grades.id, id));
+			await db.update(grades).set({ ...merged, score: isCompleteGrade(validValues.data) ? calculateScore(validValues.data, weight) : null }).where(eq(grades.id, id));
 			return c.json({ item: await findGrade(id) });
 		} catch (error) {
 			if (isDatabaseConstraintError(error)) return conflict(c, "同じ生徒・科目・年度・学期の成績は登録できません");

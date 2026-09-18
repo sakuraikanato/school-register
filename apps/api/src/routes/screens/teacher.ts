@@ -7,10 +7,11 @@ import { courses, grades, studentCourses, students, subjects, weights } from "..
 import {
 	calculateScore,
 	gradeLabelFromScore,
+	isCompleteGrade,
 	termLabel,
-	validateGradeValues,
+	validateGradeDraftValues,
 	validateWeights,
-	type GradeValues,
+	type GradeDraftValues,
 	type WeightValues,
 } from "../../lib/grade";
 import { isCommonCourseName } from "../../lib/course";
@@ -19,7 +20,7 @@ import { getCurrentActor, isStaff, type CurrentActor } from "../../lib/session";
 import { isFirstTerm, pathId, screenQueryValidator, selectedYear } from "./shared";
 
 type SaveGradesBody = {
-	grades: Array<GradeValues & { studentId: number }>;
+	grades: Array<GradeDraftValues & { studentId: number }>;
 };
 
 const saveWeightsValidator = validator("json", (value, c) => {
@@ -28,8 +29,8 @@ const saveWeightsValidator = validator("json", (value, c) => {
 });
 
 const saveGradesValidator = validator("json", (value, c) => {
-	if (!isRecord(value) || !Array.isArray(value.grades) || value.grades.length === 0) {
-		return validationError(c, "1件以上の成績を入力してください");
+	if (!isRecord(value) || !Array.isArray(value.grades)) {
+		return validationError(c, "成績一覧を指定してください");
 	}
 
 	const errors: { field: string; message: string }[] = [];
@@ -46,7 +47,7 @@ const saveGradesValidator = validator("json", (value, c) => {
 			continue;
 		}
 
-		const grade = validateGradeValues(raw);
+		const grade = validateGradeDraftValues(raw);
 		if (!grade.success) {
 			errors.push(...grade.errors.map((error) => ({ field: `grades.${index}.${error.field}`, message: error.message })));
 			continue;
@@ -168,7 +169,10 @@ const app = new Hono()
 		]);
 
 		const existingByStudent = new Map(gradeRows.map((grade) => [grade.studentId, grade]));
-		const missingCount = studentRows.filter((student) => student.isAttending && !existingByStudent.has(student.id)).length;
+		const missingCount = studentRows.filter((student) => {
+			const grade = existingByStudent.get(student.id);
+			return student.isAttending && (!grade || !isCompleteGrade(grade));
+		}).length;
 
 		return c.json({
 			me: actor,
@@ -314,7 +318,7 @@ const app = new Hono()
 
 		const saved = body.grades.map((grade) => ({
 			...grade,
-			score: calculateScore(grade, weight),
+			score: isCompleteGrade(grade) ? calculateScore(grade, weight) : null,
 		}));
 		await db.transaction(async (tx) => {
 			for (const grade of saved) {

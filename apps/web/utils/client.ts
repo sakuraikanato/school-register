@@ -138,7 +138,7 @@ export function saveTeacherWeight(subjectId: number, query: ScreenQuery, weight:
   }));
 }
 
-export function saveTeacherGrades(subjectId: number, query: ScreenQuery, grades: Array<{ studentId: number; attendance: number; attitude: number; assignment: number }>) {
+export function saveTeacherGrades(subjectId: number, query: ScreenQuery, grades: Array<{ studentId: number; attendance: number | null; attitude: number | null; assignment: number | null }>) {
   return readRpc<SavedGradesResponse>(client.api.screens.teacher["grade-entry"][":subjectId"].grades.$put({
     param: { subjectId: String(subjectId) },
     query: screenQuery(query),

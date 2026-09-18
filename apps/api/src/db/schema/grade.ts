@@ -16,14 +16,14 @@ export const grades = mysqlTable(
 		subjectId: int("subject_id")
 			.notNull()
 			.references(() => subjects.id),
-		attendance: int("attendance").notNull(),
-		attitude: int("attitude").notNull(),
-		assignment: int("assignment").notNull(),
+		attendance: int("attendance"),
+		attitude: int("attitude"),
+		assignment: int("assignment"),
 		isFirstTerm: boolean("is_first_term").notNull().default(false),
 		yearId: int("year_id")
 			.notNull()
 			.references(() => years.id),
-		score: int("score").notNull(),
+		score: int("score"),
 		isConfirmed: boolean("is_confirmed").notNull().default(false),
 		confirmedAt: timestamp("confirmed_at", { fsp: 3 }),
 		confirmedBy: varchar("confirmed_by", { length: 36 }).references(() => user.id),

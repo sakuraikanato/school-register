@@ -80,7 +80,7 @@ export function GradeTable({ rows, subject, yearLabel, termLabel }: Readonly<{ r
   return <div className="grade-table-wrap"><table className="grade-table"><thead><tr><th>ステータス</th><th>学籍番号</th><th>氏名</th><th>出席率</th><th>授業態度</th><th>課題</th><th>点数</th><th>評価</th></tr></thead><tbody>{rows.map((row) => { const score = row.score; return <tr key={row.id}><td><span className={`status ${row.status === "在籍" ? "attending" : "on-leave"}`}>{row.status}</span></td><td>{row.number}</td><td className="student-name">{row.name}</td><td>{row.attendance}%</td><td>{row.attitude}</td><td>{row.assignment}</td><td>{score == null ? "—" : `${score}点`}</td><td>{score == null ? "—" : <GradePill score={score} label={row.gradeLabel} />}</td></tr>; })}</tbody></table><p className="table-caption">{subject}・{yearLabel} {termLabel}の成績</p></div>;
 }
 
-type MobileSubject = { subjectName: string; attendance: number; attitude: number; assignment: number; score: number; gradeLabel?: string | null };
+type MobileSubject = { subjectName: string; attendance: number | null; attitude: number | null; assignment: number | null; score: number | null; gradeLabel?: string | null };
 export type GradeHistoryOption = Readonly<{ value: string; label: string }>;
 
 export function GradeHistorySelect({ options, value, onChange, className }: Readonly<{ options: readonly GradeHistoryOption[]; value: string; onChange: (value: string) => void; className: string }>) {
@@ -88,7 +88,8 @@ export function GradeHistorySelect({ options, value, onChange, className }: Read
 }
 
 export function MobileGradeSheet({ title, student, subjects, yearLabel, termLabel, historyOptions = [], historyValue = "", onHistoryChange }: Readonly<{ title: string; student: StaffGradeSheetResponse["student"]; subjects: readonly MobileSubject[]; yearLabel: string; termLabel: string; historyOptions?: readonly GradeHistoryOption[]; historyValue?: string; onHistoryChange?: (value: string) => void }>) {
-  return <section className="mobile-grade-sheet" aria-label="スマホ用成績表"><div className="sheet-topline"><span>{title}</span>{onHistoryChange && historyOptions.length > 0 ? <GradeHistorySelect className="sheet-history-select" options={historyOptions} value={historyValue} onChange={onHistoryChange} /> : <span>{yearLabel} {termLabel}</span>}</div><div className="sheet-person"><div><small>学籍番号</small><strong>{student.studentNumber}</strong></div><div><small>氏名</small><strong>{student.name}</strong></div></div><div className="sheet-overview"><div><small>平均点</small><strong>{subjects.length ? Math.round(subjects.reduce((sum, row) => sum + row.score, 0) / subjects.length) : "—"}<span>点</span></strong></div><div><small>修得科目</small><strong>{subjects.length}<span>科目</span></strong></div></div><div className="sheet-table-wrap"><table className="sheet-table"><thead><tr><th>科目</th><th>出席率</th><th>授業態度</th><th>課題</th><th>点数</th><th>評価</th></tr></thead><tbody>{subjects.map((row) => <tr key={row.subjectName}><td>{row.subjectName}</td><td>{row.attendance}%</td><td>{row.attitude}</td><td>{row.assignment}</td><td>{row.score}</td><td><GradePill score={row.score} label={row.gradeLabel} /></td></tr>)}</tbody></table></div></section>;
+  const scoredSubjects = subjects.filter((row) => row.score !== null);
+  return <section className="mobile-grade-sheet" aria-label="スマホ用成績表"><div className="sheet-topline"><span>{title}</span>{onHistoryChange && historyOptions.length > 0 ? <GradeHistorySelect className="sheet-history-select" options={historyOptions} value={historyValue} onChange={onHistoryChange} /> : <span>{yearLabel} {termLabel}</span>}</div><div className="sheet-person"><div><small>学籍番号</small><strong>{student.studentNumber}</strong></div><div><small>氏名</small><strong>{student.name}</strong></div></div><div className="sheet-overview"><div><small>平均点</small><strong>{scoredSubjects.length ? Math.round(scoredSubjects.reduce((sum, row) => sum + (row.score ?? 0), 0) / scoredSubjects.length) : "—"}<span>点</span></strong></div><div><small>修得科目</small><strong>{scoredSubjects.length}<span>科目</span></strong></div></div><div className="sheet-table-wrap"><table className="sheet-table"><thead><tr><th>科目</th><th>出席率</th><th>授業態度</th><th>課題</th><th>点数</th><th>評価</th></tr></thead><tbody>{subjects.map((row) => <tr key={row.subjectName}><td>{row.subjectName}</td><td>{row.attendance == null ? "—" : `${row.attendance}%`}</td><td>{row.attitude ?? "—"}</td><td>{row.assignment ?? "—"}</td><td>{row.score ?? "—"}</td><td>{row.score == null ? "—" : <GradePill score={row.score} label={row.gradeLabel} />}</td></tr>)}</tbody></table></div></section>;
 }
 
 function NumericInput({ value, onChange, min, max, label, disabled = false }: Readonly<{ value: number | null; onChange: (value: number | null) => void; min: number; max: number; label: string; disabled?: boolean }>) { return <input aria-label={label} type="number" min={min} max={max} value={value ?? ""} disabled={disabled} onChange={(event) => onChange(parseGradeInput(event.target.value))} />; }
@@ -113,12 +114,11 @@ export function GradeEditor({ data, subjectId, query = {}, staff = false }: Read
     const invalid = activeRows.find(hasInvalidEditableGrade);
     if (invalid) return setMessage(`${invalid.name}の成績入力値を確認してください。`);
     const complete = activeRows.filter(isCompleteEditableGrade);
-    if (complete.length === 0) return setMessage("保存できる入力済みの成績がありません。");
     try {
-      await saveTeacherGrades(subjectId, query, complete.map((row) => ({ studentId: row.id, attendance: row.attendance as number, attitude: row.attitude as number, assignment: row.assignment as number })));
+      await saveTeacherGrades(subjectId, query, activeRows.map((row) => ({ studentId: row.id, attendance: row.attendance, attitude: row.attitude, assignment: row.assignment })));
       const missing = activeRows.length - complete.length;
-      setMessage(missing > 0 ? `${complete.length}名分を保存しました。未入力の${missing}名分は確定できません。` : staff ? "成績を保存しました。確定は成績確定画面から行ってください。" : "成績を保存しました。");
-      if (missing === 0) setSavedSnapshot(JSON.stringify({ rows, weights }));
+      setMessage(missing > 0 ? `${activeRows.length}名分を保存しました。未入力の${missing}名分は確定できません。` : staff ? "成績を保存しました。確定は成績確定画面から行ってください。" : "成績を保存しました。");
+      setSavedSnapshot(JSON.stringify({ rows, weights }));
     } catch (error) { setMessage(error instanceof Error ? error.message : "保存に失敗しました"); }
   };
   const saveWeights = async (next: number[]) => { if (isFinalized) { setMessage("この学期の成績は確定済みのため評価基準を変更できません。"); return; } setWeights(next); try { const saved = JSON.parse(savedSnapshot) as { rows: GradeEditorRow[]; weights: number[] }; await saveTeacherWeight(subjectId, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows: saved.rows, weights: next })); setMessage("重みを保存しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "重みの保存に失敗しました"); } };

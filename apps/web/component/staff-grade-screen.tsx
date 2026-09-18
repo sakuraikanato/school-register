@@ -45,16 +45,11 @@ export function StaffGradeScreen({ data, subjectId, query = {} }: Readonly<{ dat
       return null;
     }
     const completeRows = activeRows.filter(isCompleteEditableGrade);
-    const missingMessage = formatMissingEditableGrades(activeRows);
-    if (completeRows.length === 0) {
-      showMessage(missingMessage || "保存できる入力済みの成績がありません。", true);
-      return null;
-    }
     try {
-      await saveTeacherGrades(subjectId, query, completeRows.map((row) => ({ studentId: row.id, attendance: row.attendance as number, attitude: row.attitude as number, assignment: row.assignment as number })));
+      await saveTeacherGrades(subjectId, query, activeRows.map((row) => ({ studentId: row.id, attendance: row.attendance, attitude: row.attitude, assignment: row.assignment })));
       const missing = activeRows.length - completeRows.length;
-      if (missing === 0) setSavedSnapshot(JSON.stringify({ rows: draftRows, weights }));
-      return { savedCount: completeRows.length, missing };
+      setSavedSnapshot(JSON.stringify({ rows: draftRows, weights }));
+      return { savedCount: activeRows.length, missing };
     } catch (error) {
       showMessage(error instanceof Error ? error.message : "成績の保存に失敗しました", true);
       return null;
@@ -135,5 +130,5 @@ export function StaffGradeScreen({ data, subjectId, query = {} }: Readonly<{ dat
 }
 
 export function StaffGradeMobile({ data }: Readonly<{ data: TeacherGradeEntryResponse }>) {
-  return <main className="staff-grade-mobile-page"><header className="staff-grade-mobile-header"><div className="staff-mobile-breadcrumb" aria-label="パンくずリスト"><span><Link href="/staff">ホーム</Link><b aria-hidden="true">›</b></span><span><Link href="/staff/courses">担当科目</Link><b aria-hidden="true">›</b></span><span className="is-active">成績一覧</span></div><h1>科目・{data.subject.name}</h1></header><section className="staff-grade-mobile-table-shell" aria-label={`${data.subject.name}成績一覧`}><div className="staff-grade-mobile-table-scroll"><table className="staff-grade-table staff-grade-mobile-table"><thead><tr><th>ステータス</th><th>学籍</th><th>氏名</th><th>出席率(〇%)</th><th>授業態度(1~10)</th><th>課題(1~10)</th><th>点数</th><th>評価</th></tr></thead><tbody>{data.students.map(({ student, grade, gradeLabel }) => <tr key={student.id}><td>{student.isAttending ? "在籍" : "休学"}</td><td>{student.studentNumber}</td><td>{student.name}</td><td>{grade ? `${grade.attendance}%` : "—"}</td><td>{grade?.attitude ?? "—"}</td><td>{grade?.assignment ?? "—"}</td><td>{grade?.score ?? "—"}</td><td>{grade ? <GradePill score={grade.score} label={gradeLabel} /> : "—"}</td></tr>)}</tbody></table></div></section><StaffMobileLogout /></main>;
+  return <main className="staff-grade-mobile-page"><header className="staff-grade-mobile-header"><div className="staff-mobile-breadcrumb" aria-label="パンくずリスト"><span><Link href="/staff">ホーム</Link><b aria-hidden="true">›</b></span><span><Link href="/staff/courses">担当科目</Link><b aria-hidden="true">›</b></span><span className="is-active">成績一覧</span></div><h1>科目・{data.subject.name}</h1></header><section className="staff-grade-mobile-table-shell" aria-label={`${data.subject.name}成績一覧`}><div className="staff-grade-mobile-table-scroll"><table className="staff-grade-table staff-grade-mobile-table"><thead><tr><th>ステータス</th><th>学籍</th><th>氏名</th><th>出席率(〇%)</th><th>授業態度(1~10)</th><th>課題(1~10)</th><th>点数</th><th>評価</th></tr></thead><tbody>{data.students.map(({ student, grade, gradeLabel }) => <tr key={student.id}><td>{student.isAttending ? "在籍" : "休学"}</td><td>{student.studentNumber}</td><td>{student.name}</td><td>{grade?.attendance == null ? "—" : `${grade.attendance}%`}</td><td>{grade?.attitude ?? "—"}</td><td>{grade?.assignment ?? "—"}</td><td>{grade?.score ?? "—"}</td><td>{grade?.score == null ? "—" : <GradePill score={grade.score} label={gradeLabel} />}</td></tr>)}</tbody></table></div></section><StaffMobileLogout /></main>;
 }
