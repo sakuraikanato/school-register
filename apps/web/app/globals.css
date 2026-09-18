@@ -372,7 +372,7 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
   .staff-gradebook-term select:focus-visible { outline:2px solid #001a9d; outline-offset:2px; }
   .staff-gradebook-term span { position:absolute; right:5px; pointer-events:none; font-size:25px; line-height:1; transform:translateY(-2px); }
   .staff-gradebook-table-shell { height:442px; margin-top:0; border:1px solid #30312f; border-radius:8px; overflow:hidden; background:#fff; }
-  .staff-gradebook-table { width:100%; border-collapse:collapse; table-layout:fixed; text-align:center; font-size:20px; }
+  .staff-gradebook-table { width:100%; border-collapse:collapse; table-layout:fixed; text-align:center; font-size:20px; border-bottom:1px solid #30312f; }
   .staff-gradebook-table th { height:68px; padding:5px 6px; border-bottom:1px solid #30312f; border-left:1px solid #30312f; font-size:21px; font-weight:500; }
   .staff-gradebook-table td { height:69.7px; padding:5px 6px; border-bottom:1px solid #30312f; border-left:1px solid #30312f; font-size:20px; white-space:nowrap; }
   .staff-gradebook-table th:first-child, .staff-gradebook-table td:first-child { width:29.7%; border-left:0; }
@@ -381,6 +381,7 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
   .staff-gradebook-table th:nth-child(4), .staff-gradebook-table td:nth-child(4) { width:12.4%; }
   .staff-gradebook-table th:nth-child(5), .staff-gradebook-table td:nth-child(5) { width:13.2%; }
   .staff-gradebook-table th:nth-child(6), .staff-gradebook-table td:nth-child(6) { width:14.6%; }
+  .staff-gradebook-table tbody tr:last-child { border-bottom:1px solid #30312f; }
   .staff-gradebook-table tbody tr:last-child td { border-bottom:1px solid #30312f; }
 }
 
@@ -780,7 +781,7 @@ body { background:var(--paper); color:var(--ink); font-family:Arial, "Hiragino K
 .confirmation-footer .modal-outline-button { min-width:120px; height:46px; }
 .staff-grade-message { margin:5px 0 0; color:#08700d; font-size:13px; }
 .staff-gradebook-history-select { position:relative; display:inline-flex; align-items:center; margin:10px 0 0 auto; }
-.staff-gradebook-history-select select { min-width:150px; height:34px; padding:0 26px 0 10px; border:1px solid #91958e; border-radius:5px; color:#242624; background:#fff; font-size:14px; }
+.staff-gradebook-history-select select { min-width:150px; height:34px; padding:0 26px 0 10px; border:1px solid #91958e; border-radius:5px; appearance:none; -webkit-appearance:none; color:#242624; background:#fff; font-size:14px; cursor:pointer; }
 .staff-gradebook-history-select span { position:absolute; right:9px; pointer-events:none; }
 
 @media (max-width:800px) {
