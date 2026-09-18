@@ -1,8 +1,9 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, or } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { db } from "../../db";
 import { courses, grades, studentCourses, students, subjects, weights } from "../../db/schema";
+import { COMMON_COURSE_NAME } from "../../lib/course";
 import { termLabel } from "../../lib/grade";
 import { notFound, unauthorized } from "../../lib/http";
 import { getCurrentActor } from "../../lib/session";
@@ -44,10 +45,11 @@ const app = new Hono()
 				subjectIds.length === 0
 					? Promise.resolve([])
 					: db
-						.select({ key: subjects.id, count: count(students.id) })
+						.select({ key: subjects.id, count: countDistinct(students.id) })
 						.from(subjects)
+						.innerJoin(courses, eq(subjects.courseId, courses.id))
 						.leftJoin(studentCourses, eq(studentCourses.courseId, subjects.courseId))
-						.leftJoin(students, and(eq(students.id, studentCourses.studentId), eq(students.yearId, year.id), eq(students.isAttending, true)))
+						.leftJoin(students, and(eq(students.yearId, year.id), eq(students.isAttending, true), or(eq(courses.name, COMMON_COURSE_NAME), eq(students.id, studentCourses.studentId))))
 						.where(inArray(subjects.id, subjectIds))
 						.groupBy(subjects.id),
 				subjectIds.length === 0

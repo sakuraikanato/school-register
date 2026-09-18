@@ -13,6 +13,7 @@ import {
 	type GradeValues,
 	type WeightValues,
 } from "../../lib/grade";
+import { isCommonCourseName } from "../../lib/course";
 import { forbidden, isRecord, notFound, unauthorized, validationError } from "../../lib/http";
 import { getCurrentActor, isStaff, type CurrentActor } from "../../lib/session";
 import { isFirstTerm, pathId, screenQueryValidator, selectedYear } from "./shared";
@@ -88,8 +89,27 @@ const hasConfirmedGrades = async (subjectId: number, yearId: number, firstTerm: 
 	return Boolean(confirmed);
 };
 
-const studentsForSubject = async (subjectCourseId: number, yearId: number) => {
-	const [anyEnrollment] = await db.select({ studentId: studentCourses.studentId }).from(studentCourses).limit(1);
+const studentsForSubject = async (subjectCourseId: number, courseName: string, yearId: number) => {
+	if (isCommonCourseName(courseName)) {
+		return db
+			.select({
+				id: students.id,
+				studentNumber: students.studentNumber,
+				name: students.name,
+				nameHiragana: students.nameHiragana,
+				schoolGrade: students.schoolGrade,
+				isAttending: students.isAttending,
+			})
+			.from(students)
+			.where(eq(students.yearId, yearId))
+			.orderBy(asc(students.studentNumber));
+	}
+	const [anyEnrollment] = await db
+		.select({ studentId: studentCourses.studentId })
+		.from(studentCourses)
+		.innerJoin(students, eq(studentCourses.studentId, students.id))
+		.where(eq(students.yearId, yearId))
+		.limit(1);
 	if (!anyEnrollment) {
 		return db
 			.select({
@@ -140,7 +160,7 @@ const app = new Hono()
 				.from(weights)
 				.where(and(eq(weights.teacherId, subject.teacherId), eq(weights.subjectId, subject.id), eq(weights.yearId, year.id), eq(weights.isFirstTerm, firstTerm)))
 				.limit(1),
-			studentsForSubject(subject.courseId, year.id),
+			studentsForSubject(subject.courseId, subject.courseName, year.id),
 			db
 				.select()
 				.from(grades)
@@ -264,14 +284,21 @@ const app = new Hono()
 		const body = c.req.valid("json") as SaveGradesBody;
 		const studentIds = body.grades.map((grade) => grade.studentId);
 		const [anyEnrollment, existingRows] = await Promise.all([
-			db.select({ studentId: studentCourses.studentId }).from(studentCourses).limit(1),
+			db
+				.select({ studentId: studentCourses.studentId })
+				.from(studentCourses)
+				.innerJoin(students, eq(studentCourses.studentId, students.id))
+				.where(eq(students.yearId, year.id))
+				.limit(1),
 			db
 				.select({ studentId: grades.studentId, isConfirmed: grades.isConfirmed })
 				.from(grades)
 				.where(and(inArray(grades.studentId, studentIds), eq(grades.subjectId, subject.id), eq(grades.yearId, year.id), eq(grades.isFirstTerm, firstTerm))),
 		]);
 
-		const enrolledRows = anyEnrollment.length === 0
+		const enrolledRows = isCommonCourseName(subject.courseName)
+			? await db.select({ id: students.id }).from(students).where(and(inArray(students.id, studentIds), eq(students.yearId, year.id)))
+			: anyEnrollment.length === 0
 			? await db.select({ id: students.id }).from(students).where(and(inArray(students.id, studentIds), eq(students.yearId, year.id)))
 			: await db
 					.select({ id: students.id })

@@ -4,6 +4,7 @@ import { validator } from "hono/validator";
 
 import { db } from "../../db";
 import { courses, grades, studentCourses, students, subjects, user, years } from "../../db/schema";
+import { COMMON_COURSE_NAME, isCommonCourseName } from "../../lib/course";
 import { importCsv, type CsvImportResource } from "../../lib/csv-import";
 import { gradeLabelFromScore, termLabel } from "../../lib/grade";
 import { forbidden, isRecord, notFound, unauthorized, validationError } from "../../lib/http";
@@ -301,10 +302,11 @@ const app = new Hono()
 			subjectIds.length === 0
 				? Promise.resolve([])
 				: db
-						.select({ subjectId: subjects.id, studentId: students.id })
+						.selectDistinct({ subjectId: subjects.id, studentId: students.id })
 						.from(subjects)
-						.innerJoin(studentCourses, eq(studentCourses.courseId, subjects.courseId))
-						.innerJoin(students, and(eq(students.id, studentCourses.studentId), eq(students.yearId, year.id), eq(students.isAttending, true)))
+						.innerJoin(courses, eq(subjects.courseId, courses.id))
+						.leftJoin(studentCourses, eq(studentCourses.courseId, subjects.courseId))
+						.leftJoin(students, and(eq(students.yearId, year.id), eq(students.isAttending, true), or(eq(courses.name, COMMON_COURSE_NAME), eq(students.id, studentCourses.studentId))))
 						.where(inArray(subjects.id, subjectIds)),
 			subjectIds.length === 0
 				? Promise.resolve([])
@@ -356,19 +358,28 @@ const app = new Hono()
 		if (!year) return notFound(c, "年度");
 		const firstTerm = isFirstTerm(query);
 		const [subject] = await db
-			.select({ id: subjects.id, courseId: subjects.courseId, name: subjects.name })
+			.select({ id: subjects.id, courseId: subjects.courseId, courseName: courses.name, name: subjects.name })
 			.from(subjects)
+			.innerJoin(courses, eq(subjects.courseId, courses.id))
 			.where(and(eq(subjects.id, subjectId), eq(subjects.yearId, year.id)))
 			.limit(1);
 		if (!subject) return notFound(c, "教科");
 
+		const studentRowsQuery = isCommonCourseName(subject.courseName)
+			? db
+					.select({ id: students.id, studentNumber: students.studentNumber, name: students.name })
+					.from(students)
+					.where(and(eq(students.yearId, year.id), eq(students.isAttending, true)))
+					.orderBy(asc(students.studentNumber))
+			: db
+					.select({ id: students.id, studentNumber: students.studentNumber, name: students.name })
+					.from(students)
+					.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
+					.where(and(eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id), eq(students.isAttending, true)))
+					.orderBy(asc(students.studentNumber));
+
 		const [studentRows, gradeRows] = await Promise.all([
-			db
-				.select({ id: students.id, studentNumber: students.studentNumber, name: students.name })
-				.from(students)
-				.innerJoin(studentCourses, eq(studentCourses.studentId, students.id))
-				.where(and(eq(studentCourses.courseId, subject.courseId), eq(students.yearId, year.id), eq(students.isAttending, true)))
-				.orderBy(asc(students.studentNumber)),
+			studentRowsQuery,
 				db
 					.select({ studentId: grades.studentId, isConfirmed: grades.isConfirmed })
 				.from(grades)
