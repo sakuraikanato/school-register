@@ -121,7 +121,7 @@ export function GradeEditor({ data, subjectId, query = {}, staff = false }: Read
       setSavedSnapshot(JSON.stringify({ rows, weights }));
     } catch (error) { setMessage(error instanceof Error ? error.message : "保存に失敗しました"); }
   };
-  const saveWeights = async (next: number[]) => { if (isFinalized) { setMessage("この学期の成績は確定済みのため評価基準を変更できません。"); return; } setWeights(next); try { const saved = JSON.parse(savedSnapshot) as { rows: GradeEditorRow[]; weights: number[] }; await saveTeacherWeight(subjectId, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows: saved.rows, weights: next })); setMessage("重みを保存しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "重みの保存に失敗しました"); } };
+  const saveWeights = async (next: number[]) => { if (isFinalized) { setMessage("この学期の成績は確定済みのため編集できません。"); return; } setWeights(next); try { await saveTeacherWeight(subjectId, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows, weights: next })); setMessage("重みを保存しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "重みの保存に失敗しました"); } };
   const focusInput = (event: React.MouseEvent<HTMLTableCellElement>) => {
     if (event.target !== event.currentTarget) return;
     event.currentTarget.querySelector<HTMLInputElement>("input")?.focus();

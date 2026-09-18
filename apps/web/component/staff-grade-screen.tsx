@@ -27,7 +27,7 @@ export function StaffGradeScreen({ data, subjectId, query = {} }: Readonly<{ dat
   const isDirty = JSON.stringify({ rows: draftRows, weights }) !== savedSnapshot;
   useUnsavedChanges(isDirty);
   const showMessage = (next: string, error = false) => { setMessage(next); setMessageIsError(error); };
-  const saveWeights = async (next: number[]) => { if (isFinalized) { showMessage("この学期の成績は確定済みのため評価基準を変更できません。", true); return; } setWeights(next); try { const saved = JSON.parse(savedSnapshot) as { rows: EditableGradeDraft[]; weights: number[] }; await saveTeacherWeight(subjectId, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows: saved.rows, weights: next })); showMessage("重みを保存しました。"); } catch (error) { showMessage(error instanceof Error ? error.message : "重みの保存に失敗しました", true); } };
+  const saveWeights = async (next: number[]) => { if (isFinalized) { showMessage("この学期の成績は確定済みのため評価基準を変更できません。", true); return; } setWeights(next); try { await saveTeacherWeight(subjectId, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows: draftRows, weights: next })); showMessage("重みを保存しました。"); } catch (error) { showMessage(error instanceof Error ? error.message : "重みの保存に失敗しました", true); } };
   const updateRow = (id: number, field: "attendance" | "attitude" | "assignment", value: string) => setDraftRows((previous) => previous.map((row) => row.id === id ? { ...row, [field]: parseGradeInput(value) } : row));
   const persistGrades = async () => {
     if (isFinalized) {

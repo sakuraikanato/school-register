@@ -24,7 +24,7 @@ export function TeacherGradesScreen({ data, query = {} }: Readonly<{ data: Teach
   const missingCount = draftRows.filter((row) => row.status === "在籍" && (row.attendance == null || row.attitude == null || row.assignment == null)).length;
   const isDirty = JSON.stringify({ rows: draftRows, weights }) !== savedSnapshot;
   useUnsavedChanges(isDirty);
-  const saveWeights = async (next: number[]) => { if (isFinalized) { setMessage("この学期の成績は確定済みのため評価基準を変更できません。"); return; } setWeights(next); try { const saved = JSON.parse(savedSnapshot) as { rows: EditableGradeDraft[]; weights: number[] }; await saveTeacherWeight(data.subject.id, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows: saved.rows, weights: next })); setMessage("重みを保存しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "重みの保存に失敗しました"); } };
+  const saveWeights = async (next: number[]) => { if (isFinalized) { setMessage("この学期の成績は確定済みのため評価基準を変更できません。"); return; } setWeights(next); try { await saveTeacherWeight(data.subject.id, query, { attendanceWeight: next[0], attitudeWeight: next[1], assignmentWeight: next[2] }); setSavedSnapshot(JSON.stringify({ rows: draftRows, weights: next })); setMessage("重みを保存しました。"); } catch (error) { setMessage(error instanceof Error ? error.message : "重みの保存に失敗しました"); } };
   const updateRow = (id: number, field: "attendance" | "attitude" | "assignment", value: string) => setDraftRows((previous) => previous.map((row) => row.id === id ? { ...row, [field]: parseGradeInput(value) } : row));
   const save = async () => {
     if (isFinalized) return setMessage("この学期の成績は確定済みのため編集できません。");
@@ -37,7 +37,7 @@ export function TeacherGradesScreen({ data, query = {} }: Readonly<{ data: Teach
     try {
       await saveTeacherGrades(data.subject.id, query, completeRows.map((row) => ({ studentId: row.id, attendance: row.attendance as number, attitude: row.attitude as number, assignment: row.assignment as number })));
       const missing = activeRows.length - completeRows.length;
-      if (missing === 0) setSavedSnapshot(JSON.stringify({ rows: draftRows, weights }));
+      setSavedSnapshot(JSON.stringify({ rows: draftRows, weights }));
       setMessage(missing > 0 ? `${completeRows.length}名分を保存しました。未入力の${missing}名分は確定できません。` : "保存しました。入力値から点数と評価を算出しました。");
     } catch (error) { setMessage(error instanceof Error ? error.message : "保存に失敗しました"); }
   };
